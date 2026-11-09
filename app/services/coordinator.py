@@ -10,6 +10,7 @@ from app.services.hook_generator_agent import HookGeneratorAgent
 from app.services.media_tools import download_youtube_video, extract_audio, extract_video_metadata
 from app.services.transcription_agent import TranscriptionAgent
 from app.services.understanding_agent import VideoUnderstandingAgent
+from app.services.video_editing_agent import VideoEditingAgent
 from app.services.webhook import dispatch_webhook
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,7 @@ async def run_pipeline_for_job(
     min_duration: int = 15,
     max_duration: int = 60,
 ):
-    """Executes the full pipeline through ingestion, transcription, understanding, viral clip detection, and hook generation."""
+    """Executes the full pipeline through ingestion, transcription, understanding, viral clip detection, hook generation, and video editing."""
     job = ACTIVE_JOBS.get(job_id)
     if not job:
         return
@@ -122,7 +123,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.EXTRACTING_AUDIO,
             "Extracting high-clarity 16kHz mono audio via FFmpeg...",
-            35,
+            30,
             "FFmpeg extracting audio track for Whisper transcription...",
             event_name="audio_extraction_started",
         )
@@ -134,7 +135,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.TRANSCRIBING,
             "Transcription Agent: Generating timestamps and speech transcript via Groq Whisper...",
-            55,
+            50,
             "Calling Groq Whisper API for word-level timestamps...",
             event_name="transcription_started",
         )
@@ -149,7 +150,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.UNDERSTANDING,
             "Video Understanding Agent: Analyzing content, tone, pacing, and hooks...",
-            70,
+            65,
             "Calling Video Understanding Agent to analyze context and narrative arc...",
             event_name="understanding_started",
         )
@@ -164,7 +165,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.DETECTING_HIGHLIGHTS,
             "Viral Clip Finder Agent: Identifying optimal 15-60s candidate segments...",
-            85,
+            80,
             "Running Viral Clip Finder Agent to score retention and viral moments...",
             event_name="clip_detection_started",
         )
@@ -184,7 +185,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.GENERATING_HOOKS,
             "Hook Generator Agent: Creating viral opening title cards and teaser overlays...",
-            95,
+            90,
             "Hook Generator Agent crafting multi-archetype visual hooks and FFmpeg overlays...",
             event_name="hook_generation_started",
         )
@@ -200,14 +201,36 @@ async def run_pipeline_for_job(
             f"Hook generation complete: Generated {total_hooks} hook variations across {len(clips_with_hooks)} clips."
         )
 
-        # Step 7: Mark pipeline stage as completed
+        # Step 7: Video Editing Agent
+        await update_job(
+            JobStatus.RENDERING,
+            "Video Editing Agent: Rendering 9:16 vertical video with punch-in hooks and audio normalization...",
+            96,
+            "FFmpeg executing smart 9:16 vertical crop, opening punch-in zoom, and title banner...",
+            event_name="rendering_started",
+        )
+        editor = VideoEditingAgent()
+        rendered_clips = await asyncio.to_thread(
+            editor.render_clips,
+            input_video_path=video_path,
+            clips=clips_with_hooks,
+            metadata=job.metadata,
+        )
+        job.highlights = rendered_clips
+        output_files = [c.rendered_video_path for c in rendered_clips if c.rendered_video_path]
+        job.output_files = output_files
+        job.logs.append(
+            f"Video Editing complete: Rendered {len(output_files)} polished vertical 9:16 shorts."
+        )
+
+        # Step 8: Mark pipeline stage as completed
         await update_job(
             JobStatus.COMPLETED,
-            f"Analysis complete! {len(clips_with_hooks)} viral clips with opening visual hooks ready.",
+            f"Pipeline complete! {len(output_files)} viral vertical shorts rendered with visual hooks.",
             100,
             "Pipeline processing finished successfully.",
             event_name="job_completed",
-            payload={"clip_count": len(clips_with_hooks)},
+            payload={"clip_count": len(rendered_clips), "rendered_count": len(output_files)},
         )
 
     except Exception as e:

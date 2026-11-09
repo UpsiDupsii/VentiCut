@@ -4,9 +4,11 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 from app.models.clip import (
     ClipHighlight,
+    HookVariant,
     TranscriptionResult,
     TranscriptionSegment,
     VideoMetadata,
@@ -16,6 +18,7 @@ from app.services.hook_generator_agent import HookGeneratorAgent
 from app.services.token_tracker import token_tracker
 from app.services.transcription_agent import TranscriptionAgent
 from app.services.understanding_agent import VideoUnderstandingAgent
+from app.services.video_editing_agent import VideoEditingAgent
 from app.services.webhook import dispatch_webhook
 
 client = TestClient(app)
@@ -44,36 +47,38 @@ def test_health_endpoint():
 
 
 def test_create_and_get_job():
-    create_resp = client.post(
-        "/api/v1/clips/jobs",
-        json={
-            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "webhook_url": "https://example.com/webhook",
-        },
-    )
-    assert create_resp.status_code == 202
-    job = create_resp.json()
-    job_id = job["job_id"]
-    assert job["status"] in ["pending", "downloading"]
-    assert job["webhook_url"] == "https://example.com/webhook"
+    with patch("app.api.v1.endpoints.clips.run_pipeline_for_job"):
+        create_resp = client.post(
+            "/api/v1/clips/jobs",
+            json={
+                "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "webhook_url": "https://example.com/webhook",
+            },
+        )
+        assert create_resp.status_code == 202
+        job = create_resp.json()
+        job_id = job["job_id"]
+        assert job["status"] in ["pending", "downloading"]
+        assert job["webhook_url"] == "https://example.com/webhook"
 
-    get_resp = client.get(f"/api/v1/clips/jobs/{job_id}")
-    assert get_resp.status_code == 200
-    assert get_resp.json()["job_id"] == job_id
+        get_resp = client.get(f"/api/v1/clips/jobs/{job_id}")
+        assert get_resp.status_code == 200
+        assert get_resp.json()["job_id"] == job_id
 
 
 def test_upload_job():
-    file_content = b"fake video bytes for testing"
-    files = {"file": ("test_sample.mp4", file_content, "video/mp4")}
-    resp = client.post(
-        "/api/v1/clips/upload",
-        files=files,
-        data={"webhook_url": "https://example.com/webhook"},
-    )
-    assert resp.status_code == 202
-    data = resp.json()
-    assert data["video_filename"] == "test_sample.mp4"
-    assert data["webhook_url"] == "https://example.com/webhook"
+    with patch("app.api.v1.endpoints.clips.run_pipeline_for_job"):
+        file_content = b"fake video bytes for testing"
+        files = {"file": ("test_sample.mp4", file_content, "video/mp4")}
+        resp = client.post(
+            "/api/v1/clips/upload",
+            files=files,
+            data={"webhook_url": "https://example.com/webhook"},
+        )
+        assert resp.status_code == 202
+        data = resp.json()
+        assert data["video_filename"] == "test_sample.mp4"
+        assert data["webhook_url"] == "https://example.com/webhook"
 
 
 def test_transcription_agent_fallback(tmp_path: Path):
@@ -189,6 +194,59 @@ def test_hook_generator_drawtext_formatting():
     filter_center = agent._build_ffmpeg_drawtext("SECRET FORMULA", "center_glow_white")
     assert "drawtext=text='SECRET FORMULA'" in filter_center
     assert "boxcolor=black@0.85" in filter_center
+
+
+def test_video_editing_agent_filters():
+    agent = VideoEditingAgent()
+    hook = HookVariant(
+        id="h1",
+        headline="STOP WASTING TIME",
+        spoken_hook="Stop wasting time on low retention edits",
+        hook_type="Contrarian",
+        hook_score=94.0,
+        visual_style="top_banner_yellow",
+    )
+    clip = ClipHighlight(
+        id="clip_test_render",
+        start_time=10.0,
+        end_time=35.0,
+        duration=25.0,
+        headline="TEST HEADLINE",
+        virality_score=90.0,
+        selected_hook=hook,
+    )
+    vf = agent._build_video_filters(clip, metadata=None)
+    assert "scale=1080:1920" in vf
+    assert "if(lt(t,2.5)" in vf
+    assert "drawtext=text='STOP WASTING TIME'" in vf
+
+
+def test_video_editing_agent_audio_filters():
+    agent = VideoEditingAgent()
+    af = agent._build_audio_filters(duration=30.0)
+    assert "afade=t=in:st=0:d=" in af
+    assert "afade=t=out:st=29." in af
+    assert "loudnorm=I=-16" in af
+
+
+def test_download_clip_endpoint(tmp_path: Path):
+    settings.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    test_clip_id = "test_download_clip_id"
+    test_file = settings.PROCESSED_DIR / f"{test_clip_id}.mp4"
+    test_file.write_bytes(b"fake mp4 video bytes for testing")
+
+    try:
+        # Success response
+        resp = client.get(f"/api/v1/clips/downloads/{test_clip_id}")
+        assert resp.status_code == 200
+        assert "video/mp4" in resp.headers.get("content-type", "")
+
+        # 404 response for nonexistent file
+        missing_resp = client.get("/api/v1/clips/downloads/non_existent_clip_xyz")
+        assert missing_resp.status_code == 404
+    finally:
+        if test_file.exists():
+            test_file.unlink()
 
 
 @pytest.mark.anyio
