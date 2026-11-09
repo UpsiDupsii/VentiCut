@@ -97,7 +97,7 @@ Long-Form Video (YouTube URL or File Upload)
 ### 3. Video Understanding Agent (`app/services/understanding_agent.py`)
 - Analyzes transcript context, overarching narrative arc, pacing, and tone.
 - Extracts primary themes, speaker insights, and high-impact quotable takeaways.
-- Powered by Google Gemini (`gemini-2.5-flash`) via Google AI Studio.
+- Powered by Google Gemini (`gemini-3.8-flash`) via Google AI Studio.
 
 ### 4. Viral Clip Finder Agent (`app/services/clip_finder_agent.py`)
 - Analyzes transcript cadence, emotional peaks, and viral triggers.
@@ -233,6 +233,7 @@ Edit `.env` and provide your free API keys:
 ```env
 # Google Gemini API Key (Free tier from Google AI Studio: https://aistudio.google.com)
 GEMINI_API_KEY=AIzaSy...
+GEMINI_MODEL=gemini-3.8-flash
 
 # Groq API Key (Free tier from Groq Console: https://console.groq.com)
 GROQ_API_KEY=gsk_...
