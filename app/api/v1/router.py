@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from app.api.v1.endpoints import clips, health
 
 api_router = APIRouter()
