@@ -9,9 +9,9 @@ env/
 .venv/
 venv/
 ENV/
-build/
+/build/
 develop-eggs/
-dist/
+/dist/
 downloads/
 eggs/
 .eggs/
@@ -30,6 +30,11 @@ wheels/
 .coverage
 htmlcov/
 .tox/
+
+# Node & Frontend
+frontend/node_modules/
+frontend/dist/
+!app/static/dist/**
 
 # Media & Temp Processing Files (important for video processing)
 storage/uploads/*

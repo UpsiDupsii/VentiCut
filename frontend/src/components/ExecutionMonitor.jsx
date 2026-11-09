@@ -1,0 +1,156 @@
+import React from "react";
+
+export default function ExecutionMonitor({ job }) {
+  if (!job) return null;
+
+  const pct = job.progress || 0;
+
+  const getStepClass = (stepNum) => {
+    if (stepNum === 1) {
+      if (pct >= 25) return "completed";
+      if (pct > 0) return "active";
+    }
+    if (stepNum === 2) {
+      if (pct >= 42) return "completed";
+      if (pct >= 25) return "active";
+    }
+    if (stepNum === 3) {
+      if (pct >= 56) return "completed";
+      if (pct >= 42) return "active";
+    }
+    if (stepNum === 4) {
+      if (pct >= 70) return "completed";
+      if (pct >= 56) return "active";
+    }
+    if (stepNum === 5) {
+      if (pct >= 80) return "completed";
+      if (pct >= 70) return "active";
+    }
+    if (stepNum === 6) {
+      if (pct >= 88) return "completed";
+      if (pct >= 80) return "active";
+    }
+    if (stepNum === 7) {
+      if (pct >= 94) return "completed";
+      if (pct >= 88) return "active";
+    }
+    if (stepNum === 8) {
+      if (pct >= 100) return "completed";
+      if (pct >= 94) return "active";
+    }
+    return "";
+  };
+
+  const steps = [
+    { num: 1, label: "Step 1", title: "Ingestion & Audio" },
+    { num: 2, label: "Step 2", title: "Transcription (Whisper)" },
+    { num: 3, label: "Step 3", title: "Understanding (Gemini)" },
+    { num: 4, label: "Step 4", title: "Viral Clip Finder" },
+    { num: 5, label: "Step 5", title: "Hook Generator" },
+    { num: 6, label: "Step 6", title: "9:16 Video Editor" },
+    { num: 7, label: "Step 7", title: "Caption Agent" },
+    { num: 8, label: "Step 8", title: "Thumbnail & QA Suite" },
+  ];
+
+  return (
+    <div style={{
+      backgroundColor: "var(--bg-surface)",
+      border: "1px solid var(--border-subtle)",
+      borderRadius: "var(--radius-lg)",
+      padding: "24px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "20px",
+    }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: "12px",
+      }}>
+        <div>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>
+            {job.video_filename || "Job Execution"}
+          </h3>
+          <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+            {job.message || "Processing..."}
+          </p>
+        </div>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: "15px",
+          fontWeight: 600,
+          color: "var(--text-primary)",
+        }}>
+          {pct}%
+        </div>
+      </div>
+
+      {/* Progress Track Loading Bar */}
+      <div style={{
+        width: "100%",
+        height: "8px",
+        backgroundColor: "var(--bg-base)",
+        borderRadius: "9999px",
+        overflow: "hidden",
+        border: "1px solid var(--border-subtle)",
+      }}>
+        <div style={{
+          height: "100%",
+          width: `${pct}%`,
+          backgroundColor: "var(--accent-primary)",
+          borderRadius: "9999px",
+          transition: "width 0.4s ease",
+        }} />
+      </div>
+
+      {/* Stepper Cards */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+        gap: "10px",
+      }}>
+        {steps.map((s) => {
+          const state = getStepClass(s.num);
+          const isCompleted = state === "completed";
+          const isActive = state === "active";
+
+          return (
+            <div
+              key={s.num}
+              style={{
+                backgroundColor: isActive ? "var(--bg-elevated)" : "var(--bg-subtle)",
+                border: `1px solid ${
+                  isCompleted
+                    ? "rgba(16, 185, 129, 0.4)"
+                    : isActive
+                    ? "var(--accent-primary)"
+                    : "var(--border-subtle)"
+                }`,
+                borderRadius: "var(--radius-md)",
+                padding: "10px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+              }}
+            >
+              <span style={{
+                fontSize: "10px",
+                fontWeight: 600,
+                color: isCompleted ? "var(--status-success)" : isActive ? "var(--accent-primary)" : "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}>
+                {s.label}
+              </span>
+              <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)" }}>
+                {s.title}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

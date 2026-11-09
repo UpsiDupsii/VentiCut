@@ -1,29 +1,69 @@
-import uuid
+import shutil
+import time
+from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
-from app.models.clip import ClipJobResponse, CreateClipJobRequest, JobStatus
+from app.core.config import settings
+from app.models.clip import (
+    CaptionStylePreset,
+    ClipHighlight,
+    ClipJobResponse,
+    CreateClipJobRequest,
+    RerenderClipRequest,
+)
+from app.services.caption_agent import CaptionAgent
+from app.services.coordinator import (
+    create_new_job,
+    get_job_state,
+    list_all_jobs,
+    run_pipeline_for_job,
+)
+from app.services.hook_generator_agent import HookGeneratorAgent
+from app.services.quality_review_agent import QualityReviewAgent
+from app.services.thumbnail_agent import ThumbnailAgent
+from app.services.video_editing_agent import VideoEditingAgent
 
 router = APIRouter()
 
-# In-memory job registry for development/starter template
-JOBS: dict[str, ClipJobResponse] = {}
+
+@router.get(
+    "/caption-styles",
+    response_model=list[CaptionStylePreset],
+    summary="List all available animated caption styles and their visual properties",
+)
+def get_caption_styles():
+    return CaptionAgent.list_styles()
 
 
 @router.post(
     "/jobs",
     response_model=ClipJobResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Create a new clip extraction job",
+    summary="Submit a video URL or YouTube link for autonomous processing",
 )
-def create_job(request: CreateClipJobRequest):
-    job_id = str(uuid.uuid4())
-    job = ClipJobResponse(
-        job_id=job_id,
-        status=JobStatus.PENDING,
-        message=f"Job queued for target aspect ratio {request.target_aspect_ratio}",
+def create_clip_job(request: CreateClipJobRequest, background_tasks: BackgroundTasks):
+    if not request.video_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="video_url is required when submitting a URL job",
+        )
+
+    job = create_new_job(
+        video_source=request.video_url,
+        webhook_url=request.webhook_url,
     )
-    JOBS[job_id] = job
+
+    background_tasks.add_task(
+        run_pipeline_for_job,
+        job.job_id,
+        None,
+        request.video_url,
+        request.min_duration_seconds,
+        request.max_duration_seconds,
+        request.caption_style,
+    )
     return job
 
 
@@ -31,25 +71,154 @@ def create_job(request: CreateClipJobRequest):
     "/upload",
     response_model=ClipJobResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Upload a video file for clipping",
+    summary="Upload a local video file for autonomous processing",
 )
-async def upload_video(
-    file: UploadFile = File(..., description="Video file (MP4, MKV, MOV)"),
+def upload_video(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
     target_aspect_ratio: str = Form(default="9:16"),
     max_duration_seconds: int = Form(default=60),
+    min_duration_seconds: int = Form(default=15),
+    caption_style: str = Form(default="hormozi_glow"),
     generate_subtitles: bool = Form(default=True),
+    webhook_url: str | None = Form(default=None),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing file name")
 
-    job_id = str(uuid.uuid4())
-    job = ClipJobResponse(
-        job_id=job_id,
-        status=JobStatus.PENDING,
-        message=f"Received video '{file.filename}'. Ready for processing.",
+    settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    destination_path = settings.UPLOAD_DIR / file.filename
+
+    # Save uploaded file safely
+    with destination_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    job = create_new_job(
+        video_source=file.filename,
+        video_filename=file.filename,
+        webhook_url=webhook_url,
     )
-    JOBS[job_id] = job
+
+    background_tasks.add_task(
+        run_pipeline_for_job,
+        job.job_id,
+        destination_path,
+        None,
+        min_duration_seconds,
+        max_duration_seconds,
+        caption_style,
+    )
     return job
+
+
+@router.post(
+    "/jobs/{job_id}/clips/{clip_id}/rerender",
+    response_model=ClipHighlight,
+    summary="Re-render an existing clip with an updated caption style or hook layout",
+)
+def rerender_clip(job_id: str, clip_id: str, request: RerenderClipRequest):
+    job = get_job_state(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    clip: ClipHighlight | None = None
+    for c in job.highlights:
+        if c.id == clip_id:
+            clip = c
+            break
+
+    if not clip:
+        raise HTTPException(status_code=404, detail=f"Clip {clip_id} not found in job {job_id}")
+
+    # Determine input video source
+    source_path: Path | None = None
+    if job.video_filename:
+        cand = settings.UPLOAD_DIR / job.video_filename
+        if cand.exists():
+            source_path = cand
+
+    if not source_path:
+        # Check files in upload dir
+        files = list(settings.UPLOAD_DIR.glob("*"))
+        if files:
+            source_path = files[0]
+
+    if not source_path or not source_path.exists():
+        raise HTTPException(
+            status_code=400,
+            detail="Original video file is not available on disk for re-rendering.",
+        )
+
+    # 1. Update Hook selection or visual style if requested
+    if request.hook_variant_id:
+        for h in clip.hooks:
+            if h.id == request.hook_variant_id:
+                clip.selected_hook = h
+                clip.headline = h.headline
+                clip.hook_text = h.spoken_hook
+                break
+
+    if request.hook_style and clip.selected_hook:
+        clip.selected_hook.visual_style = request.hook_style
+        hg = HookGeneratorAgent()
+        clip.selected_hook.ffmpeg_drawtext = hg._build_ffmpeg_drawtext(
+            clip.selected_hook.headline, request.hook_style
+        )
+
+    # 2. Re-cut 9:16 video using VideoEditingAgent
+    editor = VideoEditingAgent()
+    base_cut_path = editor.render_single_clip(source_path, clip, job.metadata)
+    clip.rendered_video_path = str(base_cut_path)
+
+    # 3. Re-generate ASS subtitles and burn with selected caption style
+    caption_agent = CaptionAgent()
+    ass_path, word_count = caption_agent.generate_ass_file(
+        clip=clip,
+        transcription=job.transcription,
+        style_id=request.caption_style,
+    )
+    clip.subtitles_ass_path = str(ass_path)
+    clip.caption_word_count = word_count
+    clip.caption_style = request.caption_style
+
+    final_rendered_path = caption_agent.burn_captions_into_video(
+        video_path=base_cut_path,
+        ass_path=ass_path,
+        clip_id=clip.id,
+    )
+    clip.rendered_video_path = str(final_rendered_path)
+    # Append timestamp parameter to bust browser video cache
+    clip.rendered_url = f"/api/v1/clips/downloads/{clip.id}?t={int(time.time())}"
+
+    hook_style_name = clip.selected_hook.visual_style if clip.selected_hook else "top_neon_pill"
+    clip.editing_effects = [
+        "9:16 smart vertical crop",
+        "opening pattern interrupt punch-in",
+        "loudness normalized audio",
+        f"opening hook card ({hook_style_name})",
+        f"animated captions ({request.caption_style})",
+    ]
+
+    # 4. Regenerate thumbnail with updated title and styling
+    try:
+        thumb_agent = ThumbnailAgent()
+        thumb_agent.generate_thumbnail_for_clip(clip)
+    except Exception:
+        pass
+
+    # 5. Re-run Quality Audit
+    try:
+        qa_agent = QualityReviewAgent()
+        qa_review = qa_agent.audit_clip(clip, job.understanding)
+        clip.quality_review = qa_review
+        clip.readiness_score = qa_review.overall_score
+    except Exception:
+        pass
+
+    job.logs.append(
+        f"Re-rendered clip {clip.id} with caption style '{request.caption_style}' and hook '{hook_style_name}'."
+    )
+    return clip
 
 
 @router.get(
@@ -58,9 +227,10 @@ async def upload_video(
     summary="Get status and details of a clip job",
 )
 def get_job(job_id: str):
-    if job_id not in JOBS:
+    job = get_job_state(job_id)
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return JOBS[job_id]
+    return job
 
 
 @router.get(
@@ -69,4 +239,49 @@ def get_job(job_id: str):
     summary="List all jobs",
 )
 def list_jobs():
-    return list(JOBS.values())
+    return list_all_jobs()
+
+
+@router.get(
+    "/downloads/{clip_id}",
+    summary="Download or stream a rendered vertical 9:16 video clip",
+)
+def download_clip(clip_id: str, download: bool = False):
+    clip_path = settings.PROCESSED_DIR / f"{clip_id}.mp4"
+    if not clip_path.exists():
+        raise HTTPException(status_code=404, detail="Rendered clip not found")
+
+    # When streaming in HTML5 video players, serve inline with byte-range seeking
+    # When explicitly requested with ?download=true, send attachment header
+    if download:
+        return FileResponse(
+            path=clip_path,
+            media_type="video/mp4",
+            filename=f"venticut_short_{clip_id}.mp4",
+            content_disposition_type="attachment",
+        )
+
+    return FileResponse(
+        path=clip_path,
+        media_type="video/mp4",
+        content_disposition_type="inline",
+    )
+
+
+@router.get(
+    "/downloads/{clip_id}/thumbnail",
+    summary="Download or view generated 9:16 vertical cover frame",
+)
+@router.get(
+    "/{clip_id}/thumbnail",
+    summary="Download or view generated 9:16 vertical cover frame",
+)
+def download_clip_thumbnail(clip_id: str):
+    thumb_path = settings.PROCESSED_DIR / f"{clip_id}_thumb.jpg"
+    if not thumb_path.exists():
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    return FileResponse(
+        path=thumb_path,
+        media_type="image/jpeg",
+        filename=f"venticut_thumb_{clip_id}.jpg",
+    )

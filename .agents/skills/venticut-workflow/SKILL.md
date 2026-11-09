@@ -1,0 +1,60 @@
+---
+name: venticut-workflow
+description: Enforces VentiCut development standards, SDLC branching, multi-agent architecture, and PR workflows without emojis.
+---
+
+# VentiCut Development Skill
+
+This skill guides the implementation of the VentiCut multi-agent AI video repurposing pipeline.
+
+## General Guidelines
+- Strict zero-emoji policy across all responses, commits, documentation, and code.
+- Always branch off `staging` using `feat/<agent-or-feature-name>`.
+- Always verify Ruff linting (`ruff check .`, `ruff format --check .`) and pytest tests before presenting changes.
+- Local Review First Policy:
+  - Do NOT automatically push feature branches to GitHub or prompt to open a PR immediately upon implementation.
+  - Keep changes on the local feature branch first, ensure local server is running, and give the user clear verification steps for local testing.
+  - Ask the user for confirmation to review locally.
+  - Only after the user confirms that local testing looks good, push the branch to GitHub and provide the ready-to-use PR title and description for merging into `staging`.
+  - Exception: If the user explicitly grants permission to push directly in a prompt, proceed with the push.
+- Explicit Branch Cleanup Reminder: Always explicitly remind the user to delete the feature branch on GitHub after merging the PR to keep the repository clean.
+- Mandatory Step-by-Step Reporting: In every turn where changes are introduced, provide a clear, chronological breakdown of actions taken and logic implemented.
+- Mandatory Ordered File Change Log: Provide an ordered list of all files created, modified, or deleted with clickable links (`file:///...`) and a brief explanation of changes in each file so the user can easily review and understand the workflow.
+- Mandatory README Maintenance: Keep `README.md` continuously updated as new features, agents, and capabilities are added so users have an accurate guide on how to configure, run, and use every part of the application.
+
+## Frontend Architecture Standards
+- Modern, clean enterprise interface styled after Linear/Vercel using React.js.
+- Strict Component Separation: Every distinct UI section must be in its own standalone `.jsx` component file for maintainability and easy debugging:
+  - Navigation: `Navbar.jsx`
+  - Ingestion & Uploads: `VideoIngestion.jsx`
+  - Stepper & Progress Monitor: `ExecutionMonitor.jsx`
+  - Results Tab Panes: `ViralClipsTab.jsx`, `UnderstandingTab.jsx`, `TranscriptTab.jsx`, `MetadataTab.jsx`, `LogsTab.jsx`
+  - Admin & Telemetry: `AdminModal.jsx`
+  - Central State Container: `App.jsx`
+
+## Response Structure Requirements
+When presenting work to the user, structure responses as follows:
+1. Executive Summary: What was accomplished in this turn.
+2. Step-by-Step Execution: Numbered list detailing the exact operational steps performed.
+3. Ordered File Manifest: Chronological table or list of modified/created files with paths and specific changes made.
+4. Review & Verification Guide: Commands to verify the changes locally (tests, linting, running server, and UI check steps).
+5. Next Steps / Pull Request Details: Clear recommendations for the next action.
+
+## Agent System Overview
+1. Ingestion / Downloader: Fetches video from YouTube (yt-dlp) or file upload.
+2. Video Understanding Agent: Analyzes the overarching context, topic, pacing, and speakers (Gemini).
+3. Transcription Agent: Generates precise timestamped transcripts (Whisper Large v3 on Groq).
+4. Viral Clip Finder Agent: Scores segment virality (hook, retention, emotional peak) and marks 15-60s cuts (Groq).
+5. Hook Generator Agent: Crafts opening visual hooks, headline text, teaser banners, and FFmpeg drawtext overlays.
+6. Video Editing Agent: Determines camera tracking, 9:16 smart cropping, and cut sequences.
+7. Caption Agent: Produces dynamic, animated subtitles with word-level highlights.
+8. Quality Review Agent: Validates narrative coherence, audio sync, and clip quality before finalizing.
+
+## Execution Principle
+- LLMs decide (timestamps, hooks, crop focus, virality scores).
+- Deterministic tools execute (FFmpeg cuts, crops, renders; yt-dlp downloads; whisper transcribes).
+
+## Free API References
+- Gemini API: Free tier on Google AI Studio (https://aistudio.google.com) - large context window, multimodal video/audio comprehension.
+- Groq Cloud: Free tier on Groq Console (https://console.groq.com) - high-speed Whisper audio transcription and Llama-3 inference.
+- yt-dlp & FFmpeg: 100% free, open-source local binaries.
