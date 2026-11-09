@@ -97,7 +97,8 @@ class ViralClipFinderAgent:
             "1. Strong hook in the first 3-5 seconds.\n"
             "2. Complete narrative or insight that makes sense out of context.\n"
             "3. Clean start and end timestamps matching sentence boundaries.\n"
-            "Respond ONLY with a valid JSON array of objects."
+            "4. NEVER use generic titles or cliches like 'The Brutal Truth'. Make each title unique and specific.\n"
+            "Respond ONLY with a valid JSON object containing a 'clips' array."
         )
 
         user_prompt = f"""
@@ -108,30 +109,46 @@ Timestamped Transcript:
 {transcript_body}
 
 Extract the best 2 to 4 viral clips. Response schema:
-[
-  {{
-    "headline": "Catchy 3-7 word viral title",
-    "hook_text": "Exact opening 5-10 words of the clip",
-    "start_time": 12.5,
-    "end_time": 45.0,
-    "virality_score": 92.5,
-    "hook_score": 95.0,
-    "retention_score": 90.0,
-    "reasoning": "Why this segment has high engagement potential",
-    "summary": "Brief summary of the clip topic"
-  }}
-]
+{{
+  "clips": [
+    {{
+      "headline": "Catchy 3-7 word viral title specific to this clip",
+      "hook_text": "Exact opening 5-10 words of the clip",
+      "start_time": 12.5,
+      "end_time": 45.0,
+      "virality_score": 92.5,
+      "hook_score": 95.0,
+      "retention_score": 90.0,
+      "reasoning": "Why this segment has high engagement potential",
+      "summary": "Brief summary of the clip topic"
+    }}
+  ]
+}}
 """
 
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.2,
-        )
+        models_to_try = [self.model]
+        if "qwen/qwen3.8-27b" not in models_to_try:
+            models_to_try.append("qwen/qwen3.8-27b")
+
+        response = None
+        for m in models_to_try:
+            try:
+                response = self.client.chat.completions.create(
+                    model=m,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.2,
+                )
+                if response and response.choices and response.choices[0].message.content:
+                    break
+            except Exception as e:
+                logger.warning(f"Groq model {m} failed for clip extraction: {e}")
+
+        if not response or not response.choices:
+            return []
 
         # Record LLM usage in token tracker
         if hasattr(response, "usage") and response.usage:
@@ -234,11 +251,12 @@ Extract the best 2 to 4 viral clips. Response schema:
                 virality_score = round((hook_score * 0.55) + (retention_score * 0.45), 1)
 
                 clip_id = f"clip_{len(clips) + 1}_{uuid.uuid4().hex[:6]}"
-                headline = (
-                    first_sentence[:45]
-                    if len(first_sentence) > 10
-                    else f"Highlight Part {len(clips) + 1}"
-                )
+                clean_sentence = re.sub(r"^[\W_]+", "", first_sentence).strip()
+                clean_sentence = re.sub(r"[\.\!\?]+$", "", clean_sentence).strip()
+                if len(clean_sentence) > 10:
+                    headline = clean_sentence[:50].title()
+                else:
+                    headline = f"Key Insight #{len(clips) + 1}"
 
                 clips.append(
                     ClipHighlight(

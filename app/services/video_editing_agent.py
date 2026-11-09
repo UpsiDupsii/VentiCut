@@ -1,4 +1,5 @@
 import logging
+import re
 import subprocess
 from pathlib import Path
 
@@ -37,7 +38,7 @@ class VideoEditingAgent:
                     "9:16 smart vertical crop",
                     "opening pattern interrupt punch-in",
                     "loudness normalized audio",
-                    "opening hook title card",
+                    "opening teaser title",
                 ]
             except Exception as e:
                 logger.error(f"Failed to render clip {clip.id}: {e}")
@@ -137,7 +138,6 @@ class VideoEditingAgent:
         filters = []
 
         # 1. Opening Punch-In Zoom Pattern Interrupt (1.08x zoom for first 2.5s, then normal 9:16 crop)
-        # For t < 2.5s, crop tightly (zoomed-in centered frame); then crop standard 9:16
         punch_in_crop = (
             "crop='if(lt(t,2.5),ih*9/16/1.08,ih*9/16)':"
             "'if(lt(t,2.5),ih/1.08,ih)':"
@@ -146,7 +146,7 @@ class VideoEditingAgent:
         )
         filters.append(punch_in_crop)
 
-        # 2. Opening Visual Hook Overlay (first 3.5 seconds)
+        # 2. Opening Visual Teaser Headline (appears near top y=160 only for first 2.5s)
         hook_headline = None
         if clip.selected_hook and clip.selected_hook.headline:
             hook_headline = clip.selected_hook.headline
@@ -154,17 +154,18 @@ class VideoEditingAgent:
             hook_headline = clip.headline
 
         if hook_headline:
+            # Strip any clip number prefix like "#1 ", "#2 "
+            clean_headline = re.sub(r"^#\s*\d+\s*[-:]?\s*", "", hook_headline).strip()
             sanitized = (
-                hook_headline.replace("'", "")
+                clean_headline.replace("'", "")
                 .replace(":", " - ")
                 .replace("%", "\\%")
                 .strip()
                 .upper()
             )
-            # Top banner styled hook with high-contrast backing
             hook_drawtext = (
                 f"drawtext=text='{sanitized}':fontcolor=yellow:fontsize=46:"
-                f"box=1:boxcolor=black@0.75:boxborderw=14:x=(w-text_w)/2:y=180:enable='between(t,0,3.5)'"
+                f"box=1:boxcolor=black@0.75:boxborderw=14:x=(w-text_w)/2:y=160:enable='between(t,0,2.5)'"
             )
             filters.append(hook_drawtext)
 

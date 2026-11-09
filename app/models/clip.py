@@ -1,5 +1,4 @@
 from enum import StrEnum
-from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +13,7 @@ class JobStatus(StrEnum):
     GENERATING_HOOKS = "generating_hooks"
     CROPPING = "cropping"
     RENDERING = "rendering"
+    CAPTIONING = "captioning"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -72,13 +72,23 @@ class HookVariant(BaseModel):
         default=90.0, ge=0.0, le=100.0, description="Predicted 3-second retention score 0-100"
     )
     visual_style: str = Field(
-        default="top_banner_yellow",
-        description="Visual style: top_banner_yellow, center_glow_white, lower_third_punchy",
+        default="top_neon_pill",
+        description="Visual style: top_neon_pill, center_punch_title, lower_third_bar, floating_frosted_card",
     )
     ffmpeg_drawtext: str = Field(
         default="",
         description="FFmpeg drawtext filter syntax ready for burning into video",
     )
+
+
+class CaptionStylePreset(BaseModel):
+    id: str
+    name: str
+    description: str
+    font_name: str
+    primary_color: str
+    highlight_color: str
+    badge_style: str
 
 
 class ClipHighlight(BaseModel):
@@ -109,6 +119,26 @@ class ClipHighlight(BaseModel):
     rendered_url: str | None = Field(
         default=None, description="Streaming and download API endpoint for rendered clip"
     )
+    caption_style: str = Field(
+        default="hormozi_glow",
+        description="Active animated caption style applied to this clip",
+    )
+    available_caption_styles: list[str] = Field(
+        default=[
+            "hormozi_glow",
+            "mrbeast_yellow",
+            "karaoke_fill",
+            "tiktok_badge",
+            "minimal_clean",
+        ],
+        description="List of all selectable caption styles for re-rendering",
+    )
+    subtitles_ass_path: str | None = Field(
+        default=None, description="Path to generated ASS subtitle file"
+    )
+    caption_word_count: int = Field(
+        default=0, description="Total spoken word count synchronized in clip captions"
+    )
     editing_effects: list[str] = Field(
         default=[], description="List of visual and audio effects applied by Video Editing Agent"
     )
@@ -125,11 +155,30 @@ class CreateClipJobRequest(BaseModel):
     )
     max_duration_seconds: int = Field(default=60, description="Maximum length per short in seconds")
     min_duration_seconds: int = Field(default=15, description="Minimum length per short in seconds")
+    caption_style: str = Field(
+        default="hormozi_glow",
+        description="Selected caption style: hormozi_glow, mrbeast_yellow, karaoke_fill, tiktok_badge, minimal_clean",
+    )
     generate_subtitles: bool = Field(
         default=True, description="Whether to burn animated subtitles into clip"
     )
     webhook_url: str | None = Field(
         default=None, description="Optional webhook URL for progress callbacks"
+    )
+
+
+class RerenderClipRequest(BaseModel):
+    caption_style: str = Field(
+        default="hormozi_glow",
+        description="Target caption style: hormozi_glow, mrbeast_yellow, karaoke_fill, tiktok_badge, minimal_clean",
+    )
+    hook_variant_id: str | None = Field(
+        default=None,
+        description="Optional ID of hook variant to select for this clip",
+    )
+    hook_style: str | None = Field(
+        default=None,
+        description="Optional visual hook layout override: top_neon_pill, center_punch_title, lower_third_bar, floating_frosted_card",
     )
 
 
@@ -148,4 +197,3 @@ class ClipJobResponse(BaseModel):
     output_files: list[str] = []
     error: str | None = None
     logs: list[str] = []
-    extra: dict[str, Any] = {}

@@ -193,6 +193,12 @@ export default function AdminModal({ isOpen, onClose }) {
                 </div>
               </div>
 
+              {isLoading && !stats && (
+                <div style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)", fontSize: "13px" }}>
+                  Loading real-time API quota telemetry...
+                </div>
+              )}
+
               {stats && (
                 <>
                   {/* Groq Quota Meter */}
@@ -208,8 +214,8 @@ export default function AdminModal({ isOpen, onClose }) {
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 500 }}>
                       <span>Groq LLM Tokens (Daily Free Limit)</span>
                       <span>
-                        {stats.api_usage.groq.total_tokens_used.toLocaleString()} /{" "}
-                        {stats.api_usage.groq.daily_token_limit.toLocaleString()} tokens
+                        {(stats.api_usage?.groq?.total_tokens_used ?? 0).toLocaleString()} /{" "}
+                        {(stats.api_usage?.groq?.daily_token_limit ?? 500000).toLocaleString()} tokens
                       </span>
                     </div>
                     <div style={{
@@ -222,13 +228,13 @@ export default function AdminModal({ isOpen, onClose }) {
                       <div style={{
                         height: "100%",
                         backgroundColor: "var(--accent-primary)",
-                        width: `${Math.min(100, stats.api_usage.groq.tokens_pct_used)}%`,
+                        width: `${Math.min(100, stats.api_usage?.groq?.token_usage_percentage ?? stats.api_usage?.groq?.tokens_pct_used ?? 0)}%`,
                         transition: "width 0.3s ease",
                       }} />
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
-                      <span>Remaining: {stats.api_usage.groq.tokens_remaining.toLocaleString()} tokens</span>
-                      <span>Audio: {stats.api_usage.groq.audio_minutes_processed} mins ({stats.api_usage.groq.whisper_calls} calls)</span>
+                      <span>Remaining: {(stats.api_usage?.groq?.tokens_remaining ?? 0).toLocaleString()} tokens</span>
+                      <span>Audio: {stats.api_usage?.groq?.whisper_audio_minutes ?? stats.api_usage?.groq?.audio_minutes_processed ?? 0} mins ({stats.api_usage?.groq?.whisper_calls ?? 0} calls)</span>
                     </div>
                   </div>
 
@@ -245,8 +251,8 @@ export default function AdminModal({ isOpen, onClose }) {
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 500 }}>
                       <span>Google Gemini Requests (Daily Limit)</span>
                       <span>
-                        {stats.api_usage.gemini.requests_used.toLocaleString()} /{" "}
-                        {stats.api_usage.gemini.requests_limit.toLocaleString()} requests
+                        {(stats.api_usage?.gemini?.requests_used ?? 0).toLocaleString()} /{" "}
+                        {(stats.api_usage?.gemini?.daily_request_limit ?? stats.api_usage?.gemini?.requests_limit ?? 1500).toLocaleString()} requests
                       </span>
                     </div>
                     <div style={{
@@ -259,12 +265,12 @@ export default function AdminModal({ isOpen, onClose }) {
                       <div style={{
                         height: "100%",
                         backgroundColor: "var(--status-info)",
-                        width: `${Math.min(100, stats.api_usage.gemini.requests_pct_used)}%`,
+                        width: `${Math.min(100, stats.api_usage?.gemini?.request_usage_percentage ?? stats.api_usage?.gemini?.requests_pct_used ?? 0)}%`,
                         transition: "width 0.3s ease",
                       }} />
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)" }}>
-                      <span>Remaining: {stats.api_usage.gemini.requests_remaining.toLocaleString()} requests</span>
+                      <span>Remaining: {(stats.api_usage?.gemini?.requests_remaining ?? 0).toLocaleString()} requests</span>
                       <span>RPM Limit: 15</span>
                     </div>
                   </div>
@@ -273,16 +279,18 @@ export default function AdminModal({ isOpen, onClose }) {
                   <div className="metric-grid">
                     <div className="metric-card">
                       <div className="metric-label">Total Jobs</div>
-                      <div className="metric-value">{stats.jobs_telemetry.total}</div>
+                      <div className="metric-value">{stats.jobs_telemetry?.total ?? 0}</div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Storage (Uploads)</div>
-                      <div className="metric-value">{stats.api_usage.storage_mb.uploads} MB</div>
+                      <div className="metric-value">
+                        {stats.api_usage?.storage?.uploads_mb ?? stats.api_usage?.storage_mb?.uploads ?? 0} MB
+                      </div>
                     </div>
                     <div className="metric-card">
                       <div className="metric-label">Webhook Deliveries</div>
                       <div className="metric-value">
-                        {stats.api_usage.webhooks.successful} / {stats.api_usage.webhooks.total_dispatched}
+                        {stats.api_usage?.webhooks?.successful ?? 0} / {stats.api_usage?.webhooks?.total_dispatched ?? 0}
                       </div>
                     </div>
                   </div>

@@ -117,6 +117,7 @@ export default function VideoIngestion({ onJobStarted }) {
           className="btn-action"
           onClick={handleSubmitYt}
           disabled={isSubmittingYt || !ytUrl.trim()}
+          style={{ width: "100%", marginTop: "auto" }}
         >
           {isSubmittingYt ? "Queueing..." : "Process Source in Background"}
         </button>
@@ -174,6 +175,7 @@ export default function VideoIngestion({ onJobStarted }) {
             alignItems: "center",
             justifyContent: "center",
             gap: "6px",
+            minHeight: "115px",
           }}
         >
           <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>
@@ -203,6 +205,7 @@ export default function VideoIngestion({ onJobStarted }) {
           className="btn-action"
           onClick={handleSubmitUpload}
           disabled={isSubmittingUpload || !selectedFile}
+          style={{ width: "100%", marginTop: "auto" }}
         >
           {isSubmittingUpload ? "Uploading..." : "Upload and Analyze"}
         </button>

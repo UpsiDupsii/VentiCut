@@ -43,6 +43,16 @@ export default function App() {
     };
   }, []);
 
+  const handleClipUpdated = (updatedClip) => {
+    setJob((prev) => {
+      if (!prev) return prev;
+      const updatedHighlights = (prev.highlights || []).map((c) =>
+        c.id === updatedClip.id ? updatedClip : c
+      );
+      return { ...prev, highlights: updatedHighlights };
+    });
+  };
+
   const tabs = [
     { id: "viralClips", label: "Viral Clips" },
     { id: "understanding", label: "Understanding" },
@@ -53,7 +63,7 @@ export default function App() {
 
   return (
     <>
-      <Navbar onOpenAdmin={() => setIsAdminOpen(true)} />
+      <Navbar onOpenAdmin={() => setIsAdminOpen(false || true)} />
 
       <main>
         <div style={{ marginBottom: "4px" }}>
@@ -72,7 +82,7 @@ export default function App() {
             maxWidth: "680px",
             lineHeight: 1.5,
           }}>
-            Submit long-form video files or YouTube URLs to trigger non-blocking background agents: Transcription, Video Understanding, and Viral Clip Finder.
+            Submit long-form video files or YouTube URLs to trigger non-blocking background agents: Transcription, Video Understanding, Viral Clip Finder, Hook Generator, Video Editing, and Caption Agent.
           </p>
         </div>
 
@@ -119,7 +129,11 @@ export default function App() {
             {/* Tab Content Panes */}
             <div style={{ paddingTop: "8px" }}>
               {activeTab === "viralClips" && (
-                <ViralClipsTab highlights={job.highlights || []} />
+                <ViralClipsTab
+                  highlights={job.highlights || []}
+                  jobId={job.job_id}
+                  onClipUpdated={handleClipUpdated}
+                />
               )}
               {activeTab === "understanding" && (
                 <UnderstandingTab understanding={job.understanding} />
