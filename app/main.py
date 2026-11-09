@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="Automated AI-powered short video generator from long-form content.",
+    description="AI Video RePurposing Pipeline - Transform long videos into viral shorts and reels.",
     version="0.1.0",
     lifespan=lifespan,
 )
