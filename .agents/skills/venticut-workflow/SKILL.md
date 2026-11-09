@@ -10,8 +10,12 @@ This skill guides the implementation of the VentiCut multi-agent AI video repurp
 ## General Guidelines
 - Strict zero-emoji policy across all responses, commits, documentation, and code.
 - Always branch off `staging` using `feat/<agent-or-feature-name>`.
-- Always verify Ruff linting (`ruff check .`, `ruff format --check .`) and pytest tests before pushing.
-- Always provide the user with a ready-to-use PR title and description for merging into `staging`.
+- Always verify Ruff linting (`ruff check .`, `ruff format --check .`) and pytest tests before presenting changes.
+- Local Review First Policy:
+  - Do NOT automatically push feature branches to GitHub or prompt to open a PR immediately upon implementation.
+  - Keep changes on the local feature branch first, ensure local server is running, and give the user clear verification steps for local testing.
+  - Ask the user for confirmation to review locally.
+  - Only after the user confirms that local testing looks good, push the branch to GitHub and provide the ready-to-use PR title and description for merging into `staging`.
 - Explicit Branch Cleanup Reminder: Always explicitly remind the user to delete the feature branch on GitHub after merging the PR to keep the repository clean.
 - Mandatory Step-by-Step Reporting: In every turn where changes are introduced, provide a clear, chronological breakdown of actions taken and logic implemented.
 - Mandatory Ordered File Change Log: Provide an ordered list of all files created, modified, or deleted with clickable links (`file:///...`) and a brief explanation of changes in each file so the user can easily review and understand the workflow.
@@ -21,8 +25,8 @@ When presenting work to the user, structure responses as follows:
 1. Executive Summary: What was accomplished in this turn.
 2. Step-by-Step Execution: Numbered list detailing the exact operational steps performed.
 3. Ordered File Manifest: Chronological table or list of modified/created files with paths and specific changes made.
-4. Review & Verification Guide: Commands to verify the changes locally (tests, linting, running server).
-5. Next Steps / Pull Request Details: Clear recommendations for the next action.
+4. Review & Verification Guide: Commands to verify the changes locally (tests, linting, running server, and UI check steps).
+5. Confirmation Request / Next Steps: Ask the user to review locally and confirm before pushing to GitHub.
 
 ## Agent System Overview
 1. Ingestion / Downloader: Fetches video from YouTube (yt-dlp) or file upload.

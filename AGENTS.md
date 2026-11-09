@@ -11,12 +11,11 @@
   - `feat/<feature-name>`
   - `fix/<fix-name>`
   - `chore/<chore-name>`
-- After completing work on a branch:
-  - Run `ruff check .`, `ruff format --check .`, and `pytest`.
-  - Commit cleanly and push the branch to GitHub.
-  - Provide a clear, copy-pasteable Pull Request title and description targeting `staging`.
-  - Explicitly remind the user to delete the feature branch after merging the PR on GitHub to prevent branch clutter.
-  - The user reviews, merges into `staging`, and deletes the feature branch.
+- Local Review First Policy:
+  - After completing feature development and local test verification, DO NOT automatically push the branch to GitHub or prompt to open a PR.
+  - Instead, run the local server, provide a comprehensive local verification guide, and ask for the user's confirmation to review locally first.
+  - Only after the user explicitly confirms that local testing is satisfactory, push the branch to GitHub and supply the copy-pasteable PR title and description targeting `staging`.
+  - Always remind the user to delete the feature branch after merging the PR on GitHub to prevent branch clutter.
 - After a cohesive set of features is ready on `staging`, a release PR is prepared for `staging -> main` with release notes.
 
 ## 3. Architecture Principles
