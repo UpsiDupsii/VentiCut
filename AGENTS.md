@@ -11,12 +11,11 @@
   - `feat/<feature-name>`
   - `fix/<fix-name>`
   - `chore/<chore-name>`
-- After completing work on a branch:
-  - Run `ruff check .`, `ruff format --check .`, and `pytest`.
-  - Commit cleanly and push the branch to GitHub.
-  - Provide a clear, copy-pasteable Pull Request title and description targeting `staging`.
-  - Explicitly remind the user to delete the feature branch after merging the PR on GitHub to prevent branch clutter.
-  - The user reviews, merges into `staging`, and deletes the feature branch.
+- Local Review First Policy:
+  - After completing feature development and local test verification, DO NOT automatically push the branch to GitHub or prompt to open a PR.
+  - Instead, run the local server, provide a comprehensive local verification guide, and ask for the user's confirmation to review locally first.
+  - Only after the user explicitly confirms that local testing is satisfactory, push the branch to GitHub and supply the copy-pasteable PR title and description targeting `staging`.
+  - Always remind the user to delete the feature branch after merging the PR on GitHub to prevent branch clutter.
 - After a cohesive set of features is ready on `staging`, a release PR is prepared for `staging -> main` with release notes.
 
 ## 3. Architecture Principles
@@ -27,7 +26,9 @@
   - Google Gemini API (Google AI Studio - free tier for multimodal reasoning and text).
   - Groq API (console.groq.com - free tier for fast Whisper transcription and Llama models).
   - Local tools: FFmpeg, yt-dlp, faster-whisper / whisper.
-- UI/UX Design: Clean, modern enterprise interface styled to complement the branding and color palette of `assets/logo.png`.
+- UI/UX Design & Frontend Architecture:
+  - Clean, modern enterprise interface styled to complement the branding and color palette of `assets/logo.png`.
+  - Built with React.js using modular, single-responsibility components in separate `.jsx` files (e.g. `Navbar.jsx`, `VideoIngestion.jsx`, `ExecutionMonitor.jsx`, individual tab components, `AdminModal.jsx`) for clean debugging and maintenance.
 
 ## 4. Change Tracking and Reporting
 - Step-by-Step Reporting: In every turn where code or project files are modified, clearly report the chronological steps taken and why.

@@ -5,6 +5,7 @@ from groq import Groq
 
 from app.core.config import settings
 from app.models.clip import TranscriptionResult, TranscriptionSegment, WordTimestamp
+from app.services.token_tracker import token_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,9 @@ class TranscriptionAgent:
             full_text = getattr(response, "text", "") or raw_data.get("text", "")
             duration = float(getattr(response, "duration", 0.0) or raw_data.get("duration", 0.0))
             language = getattr(response, "language", "en") or raw_data.get("language", "en")
+
+            # Record token and usage tracking
+            token_tracker.record_groq_whisper(duration)
 
             raw_segments = getattr(response, "segments", None) or raw_data.get("segments", [])
             raw_words = getattr(response, "words", None) or raw_data.get("words", [])
@@ -93,6 +97,7 @@ class TranscriptionAgent:
         self, audio_path: Path, error_note: str | None = None
     ) -> TranscriptionResult:
         """Fallback transcription when API key is missing or offline."""
+        token_tracker.record_groq_whisper(12.0)
         mock_segments = [
             TranscriptionSegment(
                 id=0,

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
   <style>
@@ -126,6 +126,23 @@
       height: 6px;
       border-radius: 50%;
       background-color: currentColor;
+    }
+
+    .btn-admin {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-admin:hover {
+      background-color: var(--bg-elevated);
+      border-color: var(--border-strong);
     }
 
     main {
@@ -616,6 +633,97 @@
       margin-top: 4px;
     }
 
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .modal-dialog {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 680px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .usage-meter {
+      background-color: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .usage-meter-title {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .usage-bar-track {
+      width: 100%;
+      height: 6px;
+      background-color: var(--bg-subtle);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .usage-bar-fill {
+      height: 100%;
+      background-color: var(--accent-primary);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
     footer {
       border-top: 1px solid var(--border-subtle);
       padding: 20px 24px;
@@ -639,8 +747,11 @@
       <div class="header-meta">
         <span class="pill-badge">
           <span class="indicator"></span>
-          Pipeline & Webhooks Ready
+          Pipeline Ready
         </span>
+        <button class="btn-admin" onclick="openAdminModal()">
+          Admin Console
+        </button>
       </div>
     </div>
   </header>
@@ -859,6 +970,104 @@
     </div>
   </main>
 
+  <!-- Admin Modal -->
+  <div class="modal-overlay" id="adminModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="adminModalTitle">Administrator Authentication</h3>
+        <button class="modal-close" onclick="closeAdminModal()">&times;</button>
+      </div>
+
+      <!-- Unauthenticated View -->
+      <div class="modal-body" id="adminLoginForm">
+        <p style="font-size: 13px; color: var(--text-secondary);">
+          Log in to inspect real-time API token consumption, remaining free-tier quotas, and server telemetry.
+        </p>
+        <div class="form-field">
+          <label for="adminUsername">Username or Email</label>
+          <input
+            type="text"
+            class="input-control"
+            id="adminUsername"
+            value="admin@email.com"
+          />
+        </div>
+        <div class="form-field">
+          <label for="adminPassword">Password</label>
+          <input
+            type="password"
+            class="input-control"
+            id="adminPassword"
+            value="1234"
+          />
+        </div>
+        <button class="btn-action" onclick="submitAdminLogin()">
+          Authenticate
+        </button>
+        <p style="font-size: 11px; color: var(--text-muted);">
+          Pre-seeded credentials: <code>admin@email.com</code> / <code>1234</code>
+        </p>
+      </div>
+
+      <!-- Authenticated Dashboard View -->
+      <div class="modal-body" id="adminDashboardView" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; font-weight: 500;" id="adminLoggedUser">admin@email.com</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-admin" onclick="loadAdminStats()">Refresh</button>
+            <button class="btn-admin" onclick="adminLogout()">Log Out</button>
+          </div>
+        </div>
+
+        <!-- Groq API Quotas -->
+        <div class="usage-meter">
+          <div class="usage-meter-title">
+            <span>Groq LLM Tokens (Daily Free Limit)</span>
+            <span id="groqTokensRatio">0 / 500,000</span>
+          </div>
+          <div class="usage-bar-track">
+            <div class="usage-bar-fill" id="groqTokensBar"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <span id="groqTokensRemaining">Tokens Remaining: 500,000</span>
+            <span id="groqWhisperStats">Audio: 0.0 mins</span>
+          </div>
+        </div>
+
+        <!-- Gemini API Quotas -->
+        <div class="usage-meter">
+          <div class="usage-meter-title">
+            <span>Google Gemini Requests (Daily Limit)</span>
+            <span id="geminiRequestsRatio">0 / 1,500</span>
+          </div>
+          <div class="usage-bar-track">
+            <div class="usage-bar-fill" id="geminiRequestsBar" style="background-color: var(--status-info);"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+            <span id="geminiRequestsRemaining">Requests Remaining: 1,500</span>
+            <span>RPM Limit: 15</span>
+          </div>
+        </div>
+
+        <!-- Jobs & Storage Telemetry -->
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Total Jobs</div>
+            <div class="metric-value" id="adminTotalJobs">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Storage (Uploads)</div>
+            <div class="metric-value" id="adminStorageUploads">0 MB</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Webhook Deliveries</div>
+            <div class="metric-value" id="adminWebhooks">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer>
     VentiCut &bull; Enterprise Video Repurposing Pipeline &bull; SDLC Staging Release
   </footer>
@@ -868,6 +1077,7 @@
     let pollTimer = null;
     let selectedFile = null;
     let fullTranscriptText = "";
+    let adminToken = localStorage.getItem('venticut_admin_token') || null;
 
     function handleFileSelected(event) {
       if (event.target.files && event.target.files[0]) {
@@ -1081,6 +1291,104 @@
       navigator.clipboard.writeText(fullTranscriptText).then(() => {
         alert("Transcript copied to clipboard.");
       });
+    }
+
+    /* Admin Modal Logic */
+    function openAdminModal() {
+      document.getElementById('adminModal').style.display = 'flex';
+      if (adminToken) {
+        showAdminDashboard();
+        loadAdminStats();
+      } else {
+        showAdminLogin();
+      }
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').style.display = 'none';
+    }
+
+    function showAdminLogin() {
+      document.getElementById('adminModalTitle').innerText = "Administrator Authentication";
+      document.getElementById('adminLoginForm').style.display = 'flex';
+      document.getElementById('adminDashboardView').style.display = 'none';
+    }
+
+    function showAdminDashboard() {
+      document.getElementById('adminModalTitle').innerText = "Admin Console & API Quota Telemetry";
+      document.getElementById('adminLoginForm').style.display = 'none';
+      document.getElementById('adminDashboardView').style.display = 'flex';
+    }
+
+    async function submitAdminLogin() {
+      const user = document.getElementById('adminUsername').value.trim();
+      const pass = document.getElementById('adminPassword').value.trim();
+
+      try {
+        const resp = await fetch('/api/v1/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username_or_email: user, password: pass })
+        });
+
+        if (!resp.ok) {
+          alert("Invalid admin credentials.");
+          return;
+        }
+
+        const data = await resp.json();
+        adminToken = data.access_token;
+        localStorage.setItem('venticut_admin_token', adminToken);
+        showAdminDashboard();
+        loadAdminStats();
+      } catch (err) {
+        alert("Login failed: " + err);
+      }
+    }
+
+    async function loadAdminStats() {
+      if (!adminToken) return;
+
+      try {
+        const resp = await fetch('/api/v1/admin/stats', {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+
+        if (resp.status === 401) {
+          adminLogout();
+          return;
+        }
+
+        const stats = await resp.json();
+        const groq = stats.api_usage.groq;
+        const gemini = stats.api_usage.gemini;
+        const storage = stats.api_usage.storage_mb;
+        const telemetry = stats.jobs_telemetry;
+
+        // Groq Display
+        document.getElementById('groqTokensRatio').innerText = `${groq.total_tokens_used.toLocaleString()} / ${groq.daily_token_limit.toLocaleString()} tokens`;
+        document.getElementById('groqTokensBar').style.width = `${Math.min(100, groq.tokens_pct_used)}%`;
+        document.getElementById('groqTokensRemaining').innerText = `Remaining: ${groq.tokens_remaining.toLocaleString()} tokens`;
+        document.getElementById('groqWhisperStats').innerText = `Audio: ${groq.audio_minutes_processed} mins (${groq.whisper_calls} calls)`;
+
+        // Gemini Display
+        document.getElementById('geminiRequestsRatio').innerText = `${gemini.requests_used.toLocaleString()} / ${gemini.requests_limit.toLocaleString()} requests`;
+        document.getElementById('geminiRequestsBar').style.width = `${Math.min(100, gemini.requests_pct_used)}%`;
+        document.getElementById('geminiRequestsRemaining').innerText = `Remaining: ${gemini.requests_remaining.toLocaleString()} requests`;
+
+        // Telemetry Display
+        document.getElementById('adminTotalJobs').innerText = telemetry.total;
+        document.getElementById('adminStorageUploads').innerText = `${storage.uploads} MB`;
+        document.getElementById('adminWebhooks').innerText = `${stats.api_usage.webhooks.successful} / ${stats.api_usage.webhooks.total_dispatched}`;
+      } catch (err) {
+        console.error("Stats load error:", err);
+      }
+    }
+
+    function adminLogout() {
+      adminToken = null;
+      localStorage.removeItem('venticut_admin_token');
+      showAdminLogin();
     }
   </script>
 </body>
