@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models.clip import TranscriptionResult, TranscriptionSegment, VideoMetadata
 from app.services.clip_finder_agent import ViralClipFinderAgent
+from app.services.token_tracker import token_tracker
 from app.services.transcription_agent import TranscriptionAgent
 from app.services.understanding_agent import VideoUnderstandingAgent
 from app.services.webhook import dispatch_webhook
@@ -158,3 +159,59 @@ async def test_webhook_dispatcher():
             {"test": True},
         )
         assert delivered is True
+
+
+def test_admin_auth_success():
+    # Test with email
+    resp_email = client.post(
+        "/api/v1/admin/login",
+        json={"username_or_email": "admin@email.com", "password": "1234"},
+    )
+    assert resp_email.status_code == 200
+    data_email = resp_email.json()
+    assert "access_token" in data_email
+    token = data_email["access_token"]
+
+    # Test with username
+    resp_user = client.post(
+        "/api/v1/admin/login",
+        json={"username_or_email": "admin", "password": "1234"},
+    )
+    assert resp_user.status_code == 200
+
+    # Test authenticated endpoint
+    stats_resp = client.get(
+        "/api/v1/admin/stats",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert stats_resp.status_code == 200
+    stats = stats_resp.json()
+    assert "api_usage" in stats
+    assert "groq" in stats["api_usage"]
+    assert "gemini" in stats["api_usage"]
+
+
+def test_admin_auth_invalid():
+    # Wrong password
+    resp = client.post(
+        "/api/v1/admin/login",
+        json={"username_or_email": "admin@email.com", "password": "wrongpassword"},
+    )
+    assert resp.status_code == 401
+
+    # Unauthorized access to stats
+    unauth_resp = client.get("/api/v1/admin/stats")
+    assert unauth_resp.status_code == 401
+
+
+def test_token_tracker_calculations():
+    token_tracker.record_groq_whisper(duration_seconds=120.0)
+    token_tracker.record_groq_llm(prompt_tokens=100, completion_tokens=50)
+    token_tracker.record_gemini_call(estimated_tokens=250)
+    token_tracker.record_webhook(success=True)
+
+    summary = token_tracker.get_summary()
+    assert summary["groq"]["whisper_calls"] >= 1
+    assert summary["groq"]["total_tokens_used"] >= 150
+    assert summary["gemini"]["requests_used"] >= 1
+    assert summary["webhooks"]["total_dispatched"] >= 1

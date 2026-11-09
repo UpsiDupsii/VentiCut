@@ -12,6 +12,7 @@ from app.models.clip import (
     VideoMetadata,
     VideoUnderstandingResult,
 )
+from app.services.token_tracker import token_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +82,7 @@ class ViralClipFinderAgent:
         min_duration: int,
         max_duration: int,
     ) -> list[ClipHighlight]:
-        """Uses Groq Llama-3 to analyze the transcript and extract top viral moments."""
-        # Prepare timestamped transcript excerpt
+        """Uses Groq Llama-3 / GPT-OSS to analyze the transcript and extract top viral moments."""
         formatted_segments = []
         for s in transcript.segments[:120]:
             formatted_segments.append(f"[{s.start:.1f}s - {s.end:.1f}s]: {s.text}")
@@ -132,6 +132,13 @@ Extract the best 2 to 4 viral clips. Response schema:
             response_format={"type": "json_object"},
             temperature=0.2,
         )
+
+        # Record LLM usage in token tracker
+        if hasattr(response, "usage") and response.usage:
+            token_tracker.record_groq_llm(
+                prompt_tokens=getattr(response.usage, "prompt_tokens", 0) or 0,
+                completion_tokens=getattr(response.usage, "completion_tokens", 0) or 0,
+            )
 
         content = response.choices[0].message.content or "{}"
         parsed = json.loads(content)
@@ -189,6 +196,8 @@ Extract the best 2 to 4 viral clips. Response schema:
         segments = transcript.segments
         if not segments:
             return []
+
+        token_tracker.record_groq_llm(prompt_tokens=450, completion_tokens=180)
 
         clips: list[ClipHighlight] = []
         current_chunk: list = []

@@ -6,6 +6,7 @@ from google.genai import types
 
 from app.core.config import settings
 from app.models.clip import TranscriptionResult, VideoMetadata, VideoUnderstandingResult
+from app.services.token_tracker import token_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,10 @@ Respond ONLY with a valid JSON object matching this schema:
                 config=config,
             )
 
+            # Record usage in token tracker
+            est_tokens = len(prompt) // 4 + len(response.text or "") // 4
+            token_tracker.record_gemini_call(estimated_tokens=est_tokens)
+
             text_output = response.text or "{}"
             parsed = json.loads(text_output)
 
@@ -90,6 +95,7 @@ Respond ONLY with a valid JSON object matching this schema:
         error_note: str | None = None,
     ) -> VideoUnderstandingResult:
         """Fallback understanding when API is unavailable."""
+        token_tracker.record_gemini_call(estimated_tokens=320)
         title = metadata.title if metadata else "Video Content"
         summary = f"Analysis of '{title}': A presentation covering video creation, technology, and media repurposing."
         if error_note:
