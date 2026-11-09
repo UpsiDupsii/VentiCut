@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VentiCut | AI Video RePurposing Pipeline</title>
+  <style>
+    :root {
+      --bg-dark: #0a0f1d;
+      --bg-panel: #131f3f;
+      --bg-panel-hover: #182852;
+      --border-color: #223567;
+      --primary-indigo: #523dfe;
+      --primary-orange: #fe881a;
+      --text-white: #f8fafc;
+      --text-muted: #94a3b8;
+      --success-green: #10b981;
+      --accent-gradient: linear-gradient(135deg, #523dfe 0%, #fe881a 100%);
+      --card-gradient: linear-gradient(180deg, rgba(19, 31, 63, 0.8) 0%, rgba(14, 24, 49, 0.95) 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(82, 61, 254, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(254, 136, 26, 0.08) 0%, transparent 40%);
+      color: var(--text-white);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 24px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(10, 15, 29, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand img {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(82, 61, 254, 0.35);
+    }
+
+    .brand-text h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-text p {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .badge-status {
+      font-size: 12px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    main {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 36px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .hero-section {
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .hero-section h2 {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 12px;
+    }
+
+    .hero-section p {
+      color: var(--text-muted);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .input-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-gradient);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      transition: border-color 0.2s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(82, 61, 254, 0.6);
+    }
+
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-white);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title span.tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(82, 61, 254, 0.2);
+      color: #818cf8;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .card-title span.tag.orange {
+      background: rgba(254, 136, 26, 0.2);
+      color: #fb923c;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      background: #0d152a;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text-white);
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus, input[type="url"]:focus {
+      border-color: var(--primary-indigo);
+      box-shadow: 0 0 0 3px rgba(82, 61, 254, 0.25);
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(13, 21, 42, 0.4);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--primary-orange);
+      background: rgba(254, 136, 26, 0.05);
+    }
+
+    .drop-zone p.title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .drop-zone p.sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .btn {
+      background: var(--accent-gradient);
+      border: none;
+      border-radius: 10px;
+      color: #ffffff;
+      padding: 13px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 18px rgba(82, 61, 254, 0.35);
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(82, 61, 254, 0.45);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Pipeline Status Section */
+    .status-panel {
+      background: var(--card-gradient);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 28px;
+      display: none;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .status-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #0d152a;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-gradient);
+      transition: width 0.4s ease;
+    }
+
+    .pipeline-stepper {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .pipeline-stepper {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .step-box {
+      background: #0d152a;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .step-box.active {
+      border-color: var(--primary-indigo);
+      box-shadow: 0 0 12px rgba(82, 61, 254, 0.25);
+    }
+
+    .step-box.completed {
+      border-color: var(--success-green);
+    }
+
+    .step-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .step-name {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Results Tabs */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: rgba(82, 61, 254, 0.15);
+      border-color: rgba(82, 61, 254, 0.4);
+      color: #ffffff;
+    }
+
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .tag-chip {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(82, 61, 254, 0.15);
+      border: 1px solid rgba(82, 61, 254, 0.3);
+      color: #c7d2fe;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .tag-chip.orange {
+      background: rgba(254, 136, 26, 0.15);
+      border-color: rgba(254, 136, 26, 0.3);
+      color: #fed7aa;
+    }
+
+    .transcript-box {
+      max-height: 380px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 8px;
+    }
+
+    .segment-card {
+      background: #0d152a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .segment-meta {
+      font-size: 11px;
+      font-weight: 700;
+      color: #818cf8;
+    }
+
+    .segment-text {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-white);
+    }
+
+    .log-box {
+      background: #070a14;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #94a3b8;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="/assets/logo.png" alt="VentiCut Logo" />
+      <div class="brand-text">
+        <h1>VentiCut</h1>
+        <p>AI Video RePurposing Pipeline</p>
+      </div>
+    </div>
+    <div class="badge-status">Multi-Agent System Online</div>
+  </header>
+
+  <main>
+    <div class="hero-section">
+      <h2>Transform Long Videos into High-Impact Viral Shorts</h2>
+      <p>
+        Autonomous multi-agent pipeline: Ingestion, Transcription Agent (Groq Whisper), and Video Understanding Agent (Google Gemini).
+      </p>
+    </div>
+
+    <!-- Input Section -->
+    <div class="input-grid">
+      <!-- YouTube Link Card -->
+      <div class="card">
+        <div class="card-title">
+          YouTube Ingestion
+          <span class="tag">Free Engine</span>
+        </div>
+        <div class="input-group">
+          <label for="ytUrl">Enter YouTube Video URL</label>
+          <input
+            type="url"
+            id="ytUrl"
+            placeholder="https://www.youtube.com/watch?v=..."
+          />
+        </div>
+        <button class="btn" id="ytBtn" onclick="submitYoutubeJob()">
+          Fetch and Process with Agents
+        </button>
+      </div>
+
+      <!-- File Upload Card -->
+      <div class="card">
+        <div class="card-title">
+          Direct Video Upload
+          <span class="tag orange">Local Files</span>
+        </div>
+        <input type="file" id="videoFile" accept="video/mp4,video/x-matroska,video/quicktime,video/webm" style="display: none;" onchange="handleFileSelected(event)" />
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('videoFile').click()">
+          <p class="title" id="dropZoneTitle">Drag and drop video here or click to browse</p>
+          <p class="sub">Supports MP4, MOV, MKV, WebM up to 500MB</p>
+        </div>
+        <button class="btn" id="uploadBtn" onclick="submitUploadJob()" disabled>
+          Upload and Process with Agents
+        </button>
+      </div>
+    </div>
+
+    <!-- Pipeline Live Visualizer -->
+    <div class="status-panel" id="statusPanel">
+      <div class="status-header">
+        <div>
+          <h3 style="font-size: 18px; margin-bottom: 4px;" id="jobTitle">Processing Video</h3>
+          <p style="font-size: 13px; color: var(--text-muted);" id="jobStatusMsg">Initializing pipeline...</p>
+        </div>
+        <div style="font-size: 18px; font-weight: 800; color: #818cf8;" id="progressText">0%</div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <div class="pipeline-stepper">
+        <div class="step-box" id="step1">
+          <span class="step-num">Step 1</span>
+          <span class="step-name">Ingestion and FFmpeg</span>
+        </div>
+        <div class="step-box" id="step2">
+          <span class="step-num">Step 2</span>
+          <span class="step-name">Transcription Agent</span>
+        </div>
+        <div class="step-box" id="step3">
+          <span class="step-num">Step 3</span>
+          <span class="step-name">Understanding Agent</span>
+        </div>
+        <div class="step-box" id="step4">
+          <span class="step-num">Step 4</span>
+          <span class="step-name">Viral Hooks & Editing</span>
+        </div>
+      </div>
+
+      <!-- Agent Results Tabs -->
+      <div class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab('understandingTab', this)">Video Understanding</button>
+        <button class="tab-btn" onclick="switchTab('transcriptionTab', this)">Transcript & Timestamps</button>
+        <button class="tab-btn" onclick="switchTab('metadataTab', this)">Video Metadata</button>
+        <button class="tab-btn" onclick="switchTab('logsTab', this)">Execution Logs</button>
+      </div>
+
+      <!-- Tab 1: Video Understanding Agent Output -->
+      <div class="tab-content active" id="understandingTab">
+        <div>
+          <h4 style="font-size: 14px; margin-bottom: 6px; color: #818cf8;">Summary</h4>
+          <p id="understandingSummary" style="font-size: 13px; line-height: 1.6; color: var(--text-muted);">
+            Analysis pending...
+          </p>
+        </div>
+        <div>
+          <h4 style="font-size: 14px; margin-bottom: 6px; color: #818cf8;">Key Topics</h4>
+          <div id="understandingTopics"></div>
+        </div>
+        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+          <div>
+            <h4 style="font-size: 14px; margin-bottom: 4px; color: #818cf8;">Tone</h4>
+            <span class="tag-chip orange" id="understandingTone">Conversational</span>
+          </div>
+          <div>
+            <h4 style="font-size: 14px; margin-bottom: 4px; color: #818cf8;">Pacing</h4>
+            <span class="tag-chip" id="understandingPacing">Moderate</span>
+          </div>
+          <div>
+            <h4 style="font-size: 14px; margin-bottom: 4px; color: #818cf8;">Target Audience</h4>
+            <p id="understandingAudience" style="font-size: 13px; color: var(--text-muted);">-</p>
+          </div>
+        </div>
+        <div>
+          <h4 style="font-size: 14px; margin-bottom: 6px; color: #818cf8;">Suggested Viral Hooks</h4>
+          <ul id="understandingHooks" style="font-size: 13px; line-height: 1.6; padding-left: 20px; color: var(--text-white);"></ul>
+        </div>
+      </div>
+
+      <!-- Tab 2: Transcription Agent Output -->
+      <div class="tab-content" id="transcriptionTab">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; color: var(--text-muted);" id="transcriptionStats">Segments: 0</span>
+          <button class="btn" style="padding: 6px 14px; font-size: 12px;" onclick="copyFullTranscript()">Copy Full Text</button>
+        </div>
+        <div class="transcript-box" id="transcriptList">
+          <p style="font-size: 13px; color: var(--text-muted);">Awaiting transcription...</p>
+        </div>
+      </div>
+
+      <!-- Tab 3: Video Metadata -->
+      <div class="tab-content" id="metadataTab">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;" id="metadataGrid">
+          <div class="step-box"><span class="step-num">Duration</span><span class="step-name" id="metaDuration">-</span></div>
+          <div class="step-box"><span class="step-num">Resolution</span><span class="step-name" id="metaResolution">-</span></div>
+          <div class="step-box"><span class="step-num">Aspect Ratio</span><span class="step-name" id="metaAspect">-</span></div>
+          <div class="step-box"><span class="step-num">Framerate</span><span class="step-name" id="metaFps">-</span></div>
+          <div class="step-box"><span class="step-num">File Size</span><span class="step-name" id="metaSize">-</span></div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Logs -->
+      <div class="tab-content" id="logsTab">
+        <div class="log-box" id="logConsole">Pipeline logs will appear here.</div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    VentiCut &bull; AI Video RePurposing Pipeline &bull; Free Tier Multi-Agent Architecture
+  </footer>
+
+  <script>
+    let activeJobId = null;
+    let pollInterval = null;
+    let selectedFile = null;
+    let cachedTranscriptText = "";
+
+    function handleFileSelected(e) {
+      if (e.target.files && e.target.files[0]) {
+        selectedFile = e.target.files[0];
+        document.getElementById('dropZoneTitle').innerText = selectedFile.name + " (" + (selectedFile.size / (1024*1024)).toFixed(1) + " MB)";
+        document.getElementById('uploadBtn').disabled = false;
+      }
+    }
+
+    // Drag and drop handlers
+    const dropZone = document.getElementById('dropZone');
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
+    });
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        selectedFile = e.dataTransfer.files[0];
+        document.getElementById('dropZoneTitle').innerText = selectedFile.name + " (" + (selectedFile.size / (1024*1024)).toFixed(1) + " MB)";
+        document.getElementById('uploadBtn').disabled = false;
+      }
+    });
+
+    async function submitYoutubeJob() {
+      const urlInput = document.getElementById('ytUrl').value.trim();
+      if (!urlInput) {
+        alert("Please enter a valid YouTube video URL");
+        return;
+      }
+
+      document.getElementById('ytBtn').disabled = true;
+      try {
+        const resp = await fetch('/api/v1/clips/jobs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ video_url: urlInput })
+        });
+        const data = await resp.json();
+        startJobPolling(data.job_id);
+      } catch (err) {
+        alert("Failed to submit YouTube job: " + err);
+        document.getElementById('ytBtn').disabled = false;
+      }
+    }
+
+    async function submitUploadJob() {
+      if (!selectedFile) return;
+
+      document.getElementById('uploadBtn').disabled = true;
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const resp = await fetch('/api/v1/clips/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await resp.json();
+        startJobPolling(data.job_id);
+      } catch (err) {
+        alert("Failed to upload video: " + err);
+        document.getElementById('uploadBtn').disabled = false;
+      }
+    }
+
+    function startJobPolling(jobId) {
+      activeJobId = jobId;
+      document.getElementById('statusPanel').style.display = 'flex';
+      document.getElementById('statusPanel').scrollIntoView({ behavior: 'smooth' });
+
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(pollJobState, 1500);
+      pollJobState();
+    }
+
+    async function pollJobState() {
+      if (!activeJobId) return;
+
+      try {
+        const resp = await fetch(`/api/v1/clips/jobs/${activeJobId}`);
+        if (!resp.ok) return;
+        const job = await resp.json();
+
+        // Update progress
+        const pct = job.progress || 0;
+        document.getElementById('progressText').innerText = pct + "%";
+        document.getElementById('progressBar').style.width = pct + "%";
+        document.getElementById('jobStatusMsg').innerText = job.message || "Working...";
+        document.getElementById('jobTitle').innerText = job.video_filename || "Processing Video";
+
+        // Update Steppers
+        updateSteppers(job.status, pct);
+
+        // Update Logs
+        if (job.logs && job.logs.length > 0) {
+          document.getElementById('logConsole').innerText = job.logs.join('\n');
+          document.getElementById('logConsole').scrollTop = document.getElementById('logConsole').scrollHeight;
+        }
+
+        // Update Metadata
+        if (job.metadata) {
+          document.getElementById('metaDuration').innerText = job.metadata.duration + "s";
+          document.getElementById('metaResolution').innerText = job.metadata.width + " x " + job.metadata.height;
+          document.getElementById('metaAspect').innerText = job.metadata.aspect_ratio;
+          document.getElementById('metaFps').innerText = job.metadata.fps + " fps";
+          document.getElementById('metaSize').innerText = job.metadata.file_size_mb + " MB";
+        }
+
+        // Update Transcription Agent Tab
+        if (job.transcription) {
+          cachedTranscriptText = job.transcription.full_text || "";
+          const segments = job.transcription.segments || [];
+          document.getElementById('transcriptionStats').innerText = `Segments: ${segments.length} | Language: ${job.transcription.language.toUpperCase()}`;
+          
+          let segHtml = "";
+          segments.forEach(seg => {
+            segHtml += `
+              <div class="segment-card">
+                <span class="segment-meta">${seg.start.toFixed(1)}s - ${seg.end.toFixed(1)}s</span>
+                <p class="segment-text">${seg.text}</p>
+              </div>
+            `;
+          });
+          document.getElementById('transcriptList').innerHTML = segHtml || "<p>No segments found.</p>";
+        }
+
+        // Update Understanding Agent Tab
+        if (job.understanding) {
+          document.getElementById('understandingSummary').innerText = job.understanding.summary || "No summary.";
+          document.getElementById('understandingTone').innerText = job.understanding.tone || "General";
+          document.getElementById('understandingPacing').innerText = job.understanding.pacing || "Moderate";
+          document.getElementById('understandingAudience').innerText = job.understanding.target_audience || "General";
+
+          // Topics
+          let topicHtml = "";
+          (job.understanding.topics || []).forEach(t => {
+            topicHtml += `<span class="tag-chip">${t}</span>`;
+          });
+          document.getElementById('understandingTopics').innerHTML = topicHtml;
+
+          // Hooks
+          let hookHtml = "";
+          (job.understanding.potential_hooks || []).forEach(h => {
+            hookHtml += `<li>${h}</li>`;
+          });
+          document.getElementById('understandingHooks').innerHTML = hookHtml;
+        }
+
+        if (job.status === 'completed' || job.status === 'failed') {
+          clearInterval(pollInterval);
+          document.getElementById('ytBtn').disabled = false;
+          document.getElementById('uploadBtn').disabled = false;
+        }
+
+      } catch (err) {
+        console.error("Poll error:", err);
+      }
+    }
+
+    function updateSteppers(status, pct) {
+      const s1 = document.getElementById('step1');
+      const s2 = document.getElementById('step2');
+      const s3 = document.getElementById('step3');
+      const s4 = document.getElementById('step4');
+
+      [s1, s2, s3, s4].forEach(s => s.className = 'step-box');
+
+      if (pct >= 20) s1.classList.add('completed'); else if (pct > 0) s1.classList.add('active');
+      if (pct >= 60) s2.classList.add('completed'); else if (pct >= 20) s2.classList.add('active');
+      if (pct >= 85) s3.classList.add('completed'); else if (pct >= 60) s3.classList.add('active');
+      if (pct >= 100) s4.classList.add('completed'); else if (pct >= 85) s4.classList.add('active');
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    function copyFullTranscript() {
+      if (!cachedTranscriptText) return;
+      navigator.clipboard.writeText(cachedTranscriptText).then(() => {
+        alert("Transcript copied to clipboard!");
+      });
+    }
+  </script>
+</body>
+</html>

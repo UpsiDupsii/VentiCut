@@ -12,6 +12,16 @@ This skill guides the implementation of the VentiCut multi-agent AI video repurp
 - Always branch off `staging` using `feat/<agent-or-feature-name>`.
 - Always verify Ruff linting (`ruff check .`, `ruff format --check .`) and pytest tests before pushing.
 - Always provide the user with a ready-to-use PR title and description for merging into `staging`.
+- Mandatory Step-by-Step Reporting: In every turn where changes are introduced, provide a clear, chronological breakdown of actions taken and logic implemented.
+- Mandatory Ordered File Change Log: Provide an ordered list of all files created, modified, or deleted with clickable links (`file:///...`) and a brief explanation of changes in each file so the user can easily review and understand the workflow.
+
+## Response Structure Requirements
+When presenting work to the user, structure responses as follows:
+1. Executive Summary: What was accomplished in this turn.
+2. Step-by-Step Execution: Numbered list detailing the exact operational steps performed.
+3. Ordered File Manifest: Chronological table or list of modified/created files with paths and specific changes made.
+4. Review & Verification Guide: Commands to verify the changes locally (tests, linting, running server).
+5. Next Steps / Pull Request Details: Clear recommendations for the next action.
 
 ## Agent System Overview
 1. Ingestion / Downloader: Fetches video from YouTube (yt-dlp) or file upload.
