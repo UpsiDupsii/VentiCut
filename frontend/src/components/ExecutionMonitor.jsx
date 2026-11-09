@@ -7,20 +7,24 @@ export default function ExecutionMonitor({ job }) {
 
   const getStepClass = (stepNum) => {
     if (stepNum === 1) {
-      if (pct >= 20) return "completed";
+      if (pct >= 35) return "completed";
       if (pct > 0) return "active";
     }
     if (stepNum === 2) {
       if (pct >= 55) return "completed";
-      if (pct >= 20) return "active";
+      if (pct >= 35) return "active";
     }
     if (stepNum === 3) {
-      if (pct >= 75) return "completed";
+      if (pct >= 70) return "completed";
       if (pct >= 55) return "active";
     }
     if (stepNum === 4) {
-      if (pct >= 90) return "completed";
-      if (pct >= 75) return "active";
+      if (pct >= 85) return "completed";
+      if (pct >= 70) return "active";
+    }
+    if (stepNum === 5) {
+      if (pct >= 100) return "completed";
+      if (pct >= 85) return "active";
     }
     return "";
   };
@@ -30,6 +34,7 @@ export default function ExecutionMonitor({ job }) {
     { num: 2, label: "Step 2", title: "Transcription Agent" },
     { num: 3, label: "Step 3", title: "Understanding Agent" },
     { num: 4, label: "Step 4", title: "Viral Clip Finder" },
+    { num: 5, label: "Step 5", title: "Hook Generator Agent" },
   ];
 
   return (
@@ -87,8 +92,8 @@ export default function ExecutionMonitor({ job }) {
       {/* Stepper Cards */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        gap: "12px",
+        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+        gap: "10px",
       }}>
         {steps.map((s) => {
           const state = getStepClass(s.num);
@@ -108,14 +113,14 @@ export default function ExecutionMonitor({ job }) {
                     : "var(--border-subtle)"
                 }`,
                 borderRadius: "var(--radius-md)",
-                padding: "12px 14px",
+                padding: "10px 12px",
                 display: "flex",
                 flexDirection: "column",
                 gap: "4px",
               }}
             >
               <span style={{
-                fontSize: "11px",
+                fontSize: "10px",
                 fontWeight: 600,
                 color: isCompleted ? "var(--status-success)" : "var(--text-muted)",
                 textTransform: "uppercase",
@@ -123,7 +128,7 @@ export default function ExecutionMonitor({ job }) {
               }}>
                 {s.label}
               </span>
-              <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary)" }}>
+              <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary)" }}>
                 {s.title}
               </span>
             </div>

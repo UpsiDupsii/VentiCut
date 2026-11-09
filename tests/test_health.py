@@ -5,8 +5,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.models.clip import TranscriptionResult, TranscriptionSegment, VideoMetadata
+from app.models.clip import (
+    ClipHighlight,
+    TranscriptionResult,
+    TranscriptionSegment,
+    VideoMetadata,
+)
 from app.services.clip_finder_agent import ViralClipFinderAgent
+from app.services.hook_generator_agent import HookGeneratorAgent
 from app.services.token_tracker import token_tracker
 from app.services.transcription_agent import TranscriptionAgent
 from app.services.understanding_agent import VideoUnderstandingAgent
@@ -138,6 +144,51 @@ def test_viral_clip_finder_agent():
     assert first_clip.virality_score > 50.0
     assert first_clip.headline != ""
     assert first_clip.hook_text != ""
+
+
+def test_hook_generator_agent_fallback():
+    agent = HookGeneratorAgent(api_key=None)
+    clip = ClipHighlight(
+        id="test-clip-1",
+        start_time=0.0,
+        end_time=30.0,
+        duration=30.0,
+        headline="ALGORITHM SECRETS REVEALED",
+        hook_text="Why do 99 percent of creators fail when starting out?",
+        virality_score=92.0,
+        hook_score=85.0,
+        retention_score=88.0,
+        reasoning="Strong opening curiosity gap",
+    )
+
+    processed_clips = agent.generate_hooks_for_clips([clip])
+    assert len(processed_clips) == 1
+    p_clip = processed_clips[0]
+
+    # Check 4 distinct hook variants are generated
+    assert len(p_clip.hooks) == 4
+    types = {h.hook_type for h in p_clip.hooks}
+    assert "Curiosity Gap" in types
+    assert "Contrarian" in types
+    assert "Problem-Agitation" in types
+    assert "Direct Value" in types
+
+    # Check selected hook
+    assert p_clip.selected_hook is not None
+    assert p_clip.selected_hook.hook_score >= 85.0
+    assert "drawtext=" in p_clip.selected_hook.ffmpeg_drawtext
+
+
+def test_hook_generator_drawtext_formatting():
+    agent = HookGeneratorAgent(api_key=None)
+    filter_banner = agent._build_ffmpeg_drawtext("STOP DOING THIS", "top_banner_yellow")
+    assert "drawtext=text='STOP DOING THIS'" in filter_banner
+    assert "fontsize=" in filter_banner
+    assert "enable='between(t,0,3.5)'" in filter_banner
+
+    filter_center = agent._build_ffmpeg_drawtext("SECRET FORMULA", "center_glow_white")
+    assert "drawtext=text='SECRET FORMULA'" in filter_center
+    assert "boxcolor=black@0.85" in filter_center
 
 
 @pytest.mark.anyio

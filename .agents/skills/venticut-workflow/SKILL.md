@@ -20,6 +20,7 @@ This skill guides the implementation of the VentiCut multi-agent AI video repurp
 - Explicit Branch Cleanup Reminder: Always explicitly remind the user to delete the feature branch on GitHub after merging the PR to keep the repository clean.
 - Mandatory Step-by-Step Reporting: In every turn where changes are introduced, provide a clear, chronological breakdown of actions taken and logic implemented.
 - Mandatory Ordered File Change Log: Provide an ordered list of all files created, modified, or deleted with clickable links (`file:///...`) and a brief explanation of changes in each file so the user can easily review and understand the workflow.
+- Mandatory README Maintenance: Keep `README.md` continuously updated as new features, agents, and capabilities are added so users have an accurate guide on how to configure, run, and use every part of the application.
 
 ## Frontend Architecture Standards
 - Modern, clean enterprise interface styled after Linear/Vercel using React.js.
@@ -41,10 +42,10 @@ When presenting work to the user, structure responses as follows:
 
 ## Agent System Overview
 1. Ingestion / Downloader: Fetches video from YouTube (yt-dlp) or file upload.
-2. Video Understanding Agent: Analyzes the overarching context, topic, pacing, and speakers.
-3. Transcription Agent: Generates precise timestamped transcripts (Whisper/Groq/Gemini).
-4. Viral Clip Finder Agent: Scores segment virality (hook, retention, emotional peak) and marks 15-60s cuts.
-5. Hook Generator Agent: Crafts opening visual hooks, headline text, and engagement triggers.
+2. Video Understanding Agent: Analyzes the overarching context, topic, pacing, and speakers (Gemini).
+3. Transcription Agent: Generates precise timestamped transcripts (Whisper Large v3 on Groq).
+4. Viral Clip Finder Agent: Scores segment virality (hook, retention, emotional peak) and marks 15-60s cuts (Groq).
+5. Hook Generator Agent: Crafts opening visual hooks, headline text, teaser banners, and FFmpeg drawtext overlays.
 6. Video Editing Agent: Determines camera tracking, 9:16 smart cropping, and cut sequences.
 7. Caption Agent: Produces dynamic, animated subtitles with word-level highlights.
 8. Quality Review Agent: Validates narrative coherence, audio sync, and clip quality before finalizing.
