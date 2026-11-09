@@ -9,6 +9,9 @@ from app.services.caption_agent import CaptionAgent
 from app.services.clip_finder_agent import ViralClipFinderAgent
 from app.services.hook_generator_agent import HookGeneratorAgent
 from app.services.media_tools import download_youtube_video, extract_audio, extract_video_metadata
+from app.services.quality_review_agent import QualityReviewAgent
+from app.services.social_metadata_agent import SocialMetadataAgent
+from app.services.thumbnail_agent import ThumbnailAgent
 from app.services.transcription_agent import TranscriptionAgent
 from app.services.understanding_agent import VideoUnderstandingAgent
 from app.services.video_editing_agent import VideoEditingAgent
@@ -30,23 +33,22 @@ def list_all_jobs() -> list[ClipJobResponse]:
 
 def create_new_job(
     video_source: str,
-    video_url: str | None = None,
     video_filename: str | None = None,
     webhook_url: str | None = None,
 ) -> ClipJobResponse:
-    job_id = str(uuid.uuid4())
-    job = ClipJobResponse(
+    job_id = f"job_{uuid.uuid4().hex[:8]}"
+    initial_job = ClipJobResponse(
         job_id=job_id,
         status=JobStatus.PENDING,
-        message="Job queued for background processing",
-        progress=5,
-        video_url=video_url,
-        video_filename=video_filename or video_source,
+        message="Job initialized and queued for processing",
+        progress=0,
+        video_filename=video_filename,
+        video_url=video_source if video_source.startswith("http") else None,
         webhook_url=webhook_url,
-        logs=["Job registered into background pipeline."],
+        logs=["Job registered in queue."],
     )
-    ACTIVE_JOBS[job_id] = job
-    return job
+    ACTIVE_JOBS[job_id] = initial_job
+    return initial_job
 
 
 async def run_pipeline_for_job(
@@ -57,56 +59,54 @@ async def run_pipeline_for_job(
     max_duration: int = 60,
     caption_style: str = "hormozi_glow",
 ):
-    """Executes the full pipeline through ingestion, transcription, understanding, viral clip detection, hook generation, video editing, and synchronized captioning."""
+    """Coordinates full end-to-end multi-agent pipeline."""
     job = ACTIVE_JOBS.get(job_id)
     if not job:
+        logger.error(f"Cannot run pipeline: Job {job_id} not found.")
         return
 
     async def update_job(
         status: JobStatus,
         message: str,
         progress: int,
-        log_entry: str | None = None,
+        log_line: str,
         event_name: str | None = None,
         payload: dict | None = None,
     ):
         job.status = status
         job.message = message
         job.progress = progress
-        if log_entry:
-            job.logs.append(log_entry)
-            logger.info(f"[{job_id}] {log_entry}")
+        job.logs.append(log_line)
+        logger.info(f"[{job_id}] [{progress}%] {status.value}: {message}")
 
-        if job.webhook_url and event_name:
+        if job.webhook_url:
             await dispatch_webhook(
                 webhook_url=job.webhook_url,
-                event=event_name,
+                event=event_name or f"status_{status.value}",
                 job_id=job.job_id,
                 status=status.value,
                 progress=progress,
                 message=message,
-                payload=payload or {},
+                payload=payload,
             )
 
     try:
         # Step 1: Ingestion
-        video_path: Path
         if youtube_url:
             await update_job(
                 JobStatus.DOWNLOADING,
-                "Downloading YouTube video using yt-dlp...",
-                12,
-                f"Fetching YouTube video from {youtube_url}",
-                event_name="ingestion_started",
+                "Downloading YouTube video and extracting stream info...",
+                10,
+                f"Ingesting YouTube video URL: {youtube_url}",
+                event_name="download_started",
             )
             video_path, metadata = await asyncio.to_thread(
-                download_youtube_video,
-                youtube_url,
-                settings.UPLOAD_DIR,
+                download_youtube_video, youtube_url, settings.UPLOAD_DIR
             )
             job.metadata = metadata
             job.video_filename = video_path.name
-        elif local_video_path and local_video_path.exists():
+            job.logs.append(f"YouTube video successfully downloaded: {video_path.name}")
+        elif local_video_path:
             video_path = local_video_path
             await update_job(
                 JobStatus.PENDING,
@@ -229,7 +229,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.CAPTIONING,
             f"Caption Agent: Generating synchronized animated captions ({caption_style})...",
-            95,
+            92,
             f"Caption Agent generating frame-accurate ASS subtitles ({caption_style}) and burning onto clips...",
             event_name="captioning_started",
         )
@@ -241,20 +241,77 @@ async def run_pipeline_for_job(
             default_style=caption_style,
         )
         job.highlights = captioned_clips
-        final_files = [c.rendered_video_path for c in captioned_clips if c.rendered_video_path]
-        job.output_files = final_files
         job.logs.append(
-            f"Caption Agent complete: Burned animated subtitles across {len(final_files)} clips using '{caption_style}' preset."
+            f"Caption Agent complete: Burned animated subtitles across {len(captioned_clips)} clips using '{caption_style}' preset."
         )
 
-        # Step 9: Mark pipeline stage as completed
+        # Step 9: Thumbnail Agent
+        await update_job(
+            JobStatus.PACKAGING,
+            "Thumbnail Agent: Extracting optimal cover frame and rendering high-contrast 9:16 typography...",
+            95,
+            "Thumbnail Agent selecting visual climax and generating vertical cover frame...",
+            event_name="thumbnail_generation_started",
+        )
+        thumbnail_agent = ThumbnailAgent()
+        clips_with_thumbs = await asyncio.to_thread(
+            thumbnail_agent.generate_thumbnails,
+            clips=captioned_clips,
+        )
+        job.highlights = clips_with_thumbs
+        job.logs.append(
+            f"Thumbnail Agent complete: Created 9:16 cover frames for {len(clips_with_thumbs)} clips."
+        )
+
+        # Step 10: Quality Review Agent
+        await update_job(
+            JobStatus.QUALITY_REVIEW,
+            "Quality Review Agent: Auditing audio dynamics, subtitle cadence, and brand safety...",
+            97,
+            "Quality Review Agent running compliance verification and computing publish readiness score...",
+            event_name="quality_review_started",
+        )
+        quality_agent = QualityReviewAgent()
+        audited_clips = await asyncio.to_thread(
+            quality_agent.review_clips,
+            clips=clips_with_thumbs,
+            understanding=job.understanding,
+        )
+        job.highlights = audited_clips
+        job.logs.append(
+            f"Quality Review Agent complete: Audited {len(audited_clips)} clips with readiness scores."
+        )
+
+        # Step 11: Social Metadata Agent
+        await update_job(
+            JobStatus.PACKAGING,
+            "Social Metadata Agent: Generating platform-tailored copy for YouTube Shorts, TikTok, and Reels...",
+            99,
+            "Social Metadata Agent crafting high-CTR titles, hashtags, and pinned comments...",
+            event_name="social_metadata_started",
+        )
+        social_agent = SocialMetadataAgent()
+        packaged_clips = await asyncio.to_thread(
+            social_agent.generate_metadata_for_clips,
+            clips=audited_clips,
+            understanding=job.understanding,
+        )
+        job.highlights = packaged_clips
+        job.logs.append(
+            f"Social Metadata Agent complete: Generated distribution assets across 3 platforms for {len(packaged_clips)} clips."
+        )
+
+        final_files = [c.rendered_video_path for c in packaged_clips if c.rendered_video_path]
+        job.output_files = final_files
+
+        # Step 12: Mark pipeline stage as completed
         await update_job(
             JobStatus.COMPLETED,
-            f"Pipeline complete! {len(final_files)} viral vertical shorts rendered with visual hooks and animated captions.",
+            f"Pipeline complete! {len(final_files)} viral vertical shorts packaged with 9:16 thumbnails, quality audits, and social metadata.",
             100,
             "Pipeline processing finished successfully.",
             event_name="job_completed",
-            payload={"clip_count": len(captioned_clips), "rendered_count": len(final_files)},
+            payload={"clip_count": len(packaged_clips), "rendered_count": len(final_files)},
         )
 
     except Exception as e:

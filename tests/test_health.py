@@ -18,6 +18,9 @@ from app.services.caption_agent import CaptionAgent
 from app.services.clip_finder_agent import ViralClipFinderAgent
 from app.services.coordinator import ACTIVE_JOBS, create_new_job
 from app.services.hook_generator_agent import HookGeneratorAgent
+from app.services.quality_review_agent import QualityReviewAgent
+from app.services.social_metadata_agent import SocialMetadataAgent
+from app.services.thumbnail_agent import ThumbnailAgent
 from app.services.token_tracker import token_tracker
 from app.services.transcription_agent import TranscriptionAgent
 from app.services.understanding_agent import VideoUnderstandingAgent
@@ -108,6 +111,7 @@ def test_transcription_agent_fallback(tmp_path: Path):
 
 def test_video_understanding_agent_fallback():
     agent = VideoUnderstandingAgent(api_key=None)
+    agent.client = None
     transcript = TranscriptionResult(
         language="en",
         duration=30.0,
@@ -167,6 +171,7 @@ def test_viral_clip_finder_agent():
 
 def test_hook_generator_agent_fallback():
     agent = HookGeneratorAgent(api_key=None)
+    agent.client = None
     clip = ClipHighlight(
         id="test-clip-1",
         start_time=0.0,
@@ -488,3 +493,81 @@ def test_token_tracker_calculations():
     assert summary["groq"]["total_tokens_used"] >= 150
     assert summary["gemini"]["requests_used"] >= 1
     assert summary["webhooks"]["total_dispatched"] >= 1
+
+
+def test_thumbnail_agent_generation(tmp_path: Path):
+    agent = ThumbnailAgent(output_dir=tmp_path)
+    clip = ClipHighlight(
+        id="clip_thumb_unit_test",
+        start_time=5.0,
+        end_time=25.0,
+        duration=20.0,
+        headline="AI REVOLUTION BLUEPRINT",
+        virality_score=94.0,
+    )
+    updated = agent.generate_thumbnail_for_clip(clip)
+    assert updated.thumbnail_path is not None
+    assert Path(updated.thumbnail_path).exists()
+    assert "/api/v1/clips/clip_thumb_unit_test/thumbnail" in updated.thumbnail_url
+
+
+def test_quality_review_agent_audit():
+    agent = QualityReviewAgent(api_key=None)
+    clip = ClipHighlight(
+        id="clip_qa_unit_test",
+        start_time=10.0,
+        end_time=35.0,
+        duration=25.0,
+        headline="WHY SILICON VALUATION DROPPED",
+        hook_text="Investors pulled billions out of tech companies today.",
+        virality_score=91.0,
+        hook_score=92.0,
+        caption_word_count=55,
+        editing_effects=["9:16 smart vertical crop", "loudness normalized audio"],
+    )
+    review = agent.audit_clip(clip)
+    assert review.overall_score >= 80.0
+    assert review.status in ("passed", "warning")
+    assert len(review.checks) >= 5
+    assert any(c.name == "Platform Duration Compliance" for c in review.checks)
+    assert any(c.name == "Audio Loudness & Dynamics" for c in review.checks)
+    assert any(c.name == "Brand Safety & Content Moderation" for c in review.checks)
+
+
+def test_social_metadata_agent_generation():
+    agent = SocialMetadataAgent(api_key=None)
+    clip = ClipHighlight(
+        id="clip_social_unit_test",
+        start_time=12.0,
+        end_time=38.0,
+        duration=26.0,
+        headline="THE $4T TECH MARKET ROUT",
+        hook_text="Almost nobody realized what actually happened to semiconductor valuations.",
+        virality_score=93.0,
+    )
+    meta = agent.generate_clip_metadata(clip)
+    assert "#Shorts" in meta.youtube_shorts.title
+    assert len(meta.youtube_shorts.hashtags) >= 3
+    assert "#fyp" in meta.tiktok.hashtags
+    assert len(meta.instagram_reels.hashtags) >= 3
+    assert meta.youtube_shorts.pinned_comment != ""
+
+
+def test_download_clip_thumbnail_endpoint(tmp_path: Path):
+    settings.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    test_clip_id = "test_thumb_endpoint_clip"
+    test_thumb = settings.PROCESSED_DIR / f"{test_clip_id}_thumb.jpg"
+    test_thumb.write_bytes(
+        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00\xff\xdb\x00C\x00"
+    )
+
+    try:
+        resp = client.get(f"/api/v1/clips/downloads/{test_clip_id}/thumbnail")
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "image/jpeg"
+
+        resp_alias = client.get(f"/api/v1/clips/{test_clip_id}/thumbnail")
+        assert resp_alias.status_code == 200
+    finally:
+        if test_thumb.exists():
+            test_thumb.unlink()

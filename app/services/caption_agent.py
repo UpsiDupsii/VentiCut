@@ -254,7 +254,13 @@ class CaptionAgent:
             "-preset",
             "ultrafast",
             "-c:a",
-            "copy",
+            "aac",
+            "-b:a",
+            "128k",
+            "-ar",
+            "44100",
+            "-movflags",
+            "+faststart",
             str(temp_captioned_path),
         ]
 
@@ -283,7 +289,13 @@ class CaptionAgent:
                 "-preset",
                 "ultrafast",
                 "-c:a",
-                "copy",
+                "aac",
+                "-b:a",
+                "128k",
+                "-ar",
+                "44100",
+                "-movflags",
+                "+faststart",
                 str(temp_captioned_path),
             ]
             alt_res = subprocess.run(alt_cmd, capture_output=True, text=True, timeout=120)

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # AI and Transcription Providers
     OPENAI_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.8-flash"
     GROQ_API_KEY: str | None = None
     GROQ_WHISPER_MODEL: str = "whisper-large-v3-turbo"
     GROQ_LLM_MODEL: str = "openai/gpt-oss-120b"

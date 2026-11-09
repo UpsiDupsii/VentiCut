@@ -117,12 +117,14 @@ def extract_audio(video_path: Path, output_audio_path: Path) -> Path:
     return output_audio_path
 
 
-def download_youtube_video(url: str, output_dir: Path) -> tuple[Path, VideoMetadata]:
+def download_youtube_video(url: str, output_dir: Path | None = None) -> tuple[Path, VideoMetadata]:
     """Download YouTube video using yt-dlp with multi-client bot-detection bypass and fallback."""
     import yt_dlp
 
+    if output_dir is None:
+        output_dir = settings.UPLOAD_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_template = str(output_dir / "%(id)s_%(title).50s.%(ext)s")
+    out_template = str(output_dir / "%(id)s.%(ext)s")
 
     # Check for optional cookies.txt in workspace or storage
     cookie_file = None

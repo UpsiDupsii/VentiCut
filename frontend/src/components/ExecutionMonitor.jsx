@@ -27,24 +27,29 @@ export default function ExecutionMonitor({ job }) {
       if (pct >= 70) return "active";
     }
     if (stepNum === 6) {
-      if (pct >= 90) return "completed";
+      if (pct >= 88) return "completed";
       if (pct >= 80) return "active";
     }
     if (stepNum === 7) {
+      if (pct >= 94) return "completed";
+      if (pct >= 88) return "active";
+    }
+    if (stepNum === 8) {
       if (pct >= 100) return "completed";
-      if (pct >= 90) return "active";
+      if (pct >= 94) return "active";
     }
     return "";
   };
 
   const steps = [
     { num: 1, label: "Step 1", title: "Ingestion & Audio" },
-    { num: 2, label: "Step 2", title: "Transcription Agent" },
-    { num: 3, label: "Step 3", title: "Understanding Agent" },
+    { num: 2, label: "Step 2", title: "Transcription (Whisper)" },
+    { num: 3, label: "Step 3", title: "Understanding (Gemini)" },
     { num: 4, label: "Step 4", title: "Viral Clip Finder" },
     { num: 5, label: "Step 5", title: "Hook Generator" },
-    { num: 6, label: "Step 6", title: "Video Editing Agent" },
+    { num: 6, label: "Step 6", title: "9:16 Video Editor" },
     { num: 7, label: "Step 7", title: "Caption Agent" },
+    { num: 8, label: "Step 8", title: "Thumbnail & QA Suite" },
   ];
 
   return (

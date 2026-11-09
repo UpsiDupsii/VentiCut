@@ -85,6 +85,8 @@ class VideoEditingAgent:
             "aac",
             "-b:a",
             "128k",
+            "-ar",
+            "44100",
             "-movflags",
             "+faststart",
             str(output_path),
@@ -121,6 +123,12 @@ class VideoEditingAgent:
                 "ultrafast",
                 "-c:a",
                 "aac",
+                "-b:a",
+                "128k",
+                "-ar",
+                "44100",
+                "-movflags",
+                "+faststart",
                 str(output_path),
             ]
             fb_res = subprocess.run(fallback_cmd, capture_output=True, text=True, timeout=120)
@@ -172,7 +180,12 @@ class VideoEditingAgent:
         return ",".join(filters)
 
     def _build_audio_filters(self, duration: float) -> str:
-        """Constructs audio fade transitions and mobile loudness normalization."""
+        """Constructs audio fade transitions and mobile loudness normalization with standard 44.1kHz sampling."""
         fade_dur = min(0.15, duration / 4)
         out_start = max(0.0, duration - fade_dur)
-        return f"afade=t=in:st=0:d={fade_dur:.2f},afade=t=out:st={out_start:.2f}:d={fade_dur:.2f},loudnorm=I=-16:TP=-1.5:LRA=11"
+        return (
+            f"afade=t=in:st=0:d={fade_dur:.2f},"
+            f"afade=t=out:st={out_start:.2f}:d={fade_dur:.2f},"
+            f"loudnorm=I=-16:TP=-1.5:LRA=11,"
+            f"aresample=44100"
+        )

@@ -21,6 +21,8 @@ from app.services.coordinator import (
     run_pipeline_for_job,
 )
 from app.services.hook_generator_agent import HookGeneratorAgent
+from app.services.quality_review_agent import QualityReviewAgent
+from app.services.thumbnail_agent import ThumbnailAgent
 from app.services.video_editing_agent import VideoEditingAgent
 
 router = APIRouter()
@@ -39,19 +41,20 @@ def get_caption_styles():
     "/jobs",
     response_model=ClipJobResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Create a new clip job with a YouTube URL or video link",
+    summary="Submit a video URL or YouTube link for autonomous processing",
 )
-def create_job(request: CreateClipJobRequest, background_tasks: BackgroundTasks):
+def create_clip_job(request: CreateClipJobRequest, background_tasks: BackgroundTasks):
     if not request.video_url:
         raise HTTPException(
-            status_code=400, detail="video_url is required to start a link-based job"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="video_url is required when submitting a URL job",
         )
 
     job = create_new_job(
         video_source=request.video_url,
-        video_url=request.video_url,
         webhook_url=request.webhook_url,
     )
+
     background_tasks.add_task(
         run_pipeline_for_job,
         job.job_id,
@@ -68,14 +71,14 @@ def create_job(request: CreateClipJobRequest, background_tasks: BackgroundTasks)
     "/upload",
     response_model=ClipJobResponse,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Upload a video file for clipping and agent processing",
+    summary="Upload a local video file for autonomous processing",
 )
-async def upload_video(
+def upload_video(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(..., description="Video file (MP4, MKV, MOV, WebM)"),
+    file: UploadFile = File(...),
     target_aspect_ratio: str = Form(default="9:16"),
-    min_duration_seconds: int = Form(default=15),
     max_duration_seconds: int = Form(default=60),
+    min_duration_seconds: int = Form(default=15),
     caption_style: str = Form(default="hormozi_glow"),
     generate_subtitles: bool = Form(default=True),
     webhook_url: str | None = Form(default=None),
@@ -196,6 +199,22 @@ def rerender_clip(job_id: str, clip_id: str, request: RerenderClipRequest):
         f"animated captions ({request.caption_style})",
     ]
 
+    # 4. Regenerate thumbnail with updated title and styling
+    try:
+        thumb_agent = ThumbnailAgent()
+        thumb_agent.generate_thumbnail_for_clip(clip)
+    except Exception:
+        pass
+
+    # 5. Re-run Quality Audit
+    try:
+        qa_agent = QualityReviewAgent()
+        qa_review = qa_agent.audit_clip(clip, job.understanding)
+        clip.quality_review = qa_review
+        clip.readiness_score = qa_review.overall_score
+    except Exception:
+        pass
+
     job.logs.append(
         f"Re-rendered clip {clip.id} with caption style '{request.caption_style}' and hook '{hook_style_name}'."
     )
@@ -227,12 +246,42 @@ def list_jobs():
     "/downloads/{clip_id}",
     summary="Download or stream a rendered vertical 9:16 video clip",
 )
-def download_clip(clip_id: str):
+def download_clip(clip_id: str, download: bool = False):
     clip_path = settings.PROCESSED_DIR / f"{clip_id}.mp4"
     if not clip_path.exists():
         raise HTTPException(status_code=404, detail="Rendered clip not found")
+
+    # When streaming in HTML5 video players, serve inline with byte-range seeking
+    # When explicitly requested with ?download=true, send attachment header
+    if download:
+        return FileResponse(
+            path=clip_path,
+            media_type="video/mp4",
+            filename=f"venticut_short_{clip_id}.mp4",
+            content_disposition_type="attachment",
+        )
+
     return FileResponse(
         path=clip_path,
         media_type="video/mp4",
-        filename=f"venticut_short_{clip_id}.mp4",
+        content_disposition_type="inline",
+    )
+
+
+@router.get(
+    "/downloads/{clip_id}/thumbnail",
+    summary="Download or view generated 9:16 vertical cover frame",
+)
+@router.get(
+    "/{clip_id}/thumbnail",
+    summary="Download or view generated 9:16 vertical cover frame",
+)
+def download_clip_thumbnail(clip_id: str):
+    thumb_path = settings.PROCESSED_DIR / f"{clip_id}_thumb.jpg"
+    if not thumb_path.exists():
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    return FileResponse(
+        path=thumb_path,
+        media_type="image/jpeg",
+        filename=f"venticut_thumb_{clip_id}.jpg",
     )
