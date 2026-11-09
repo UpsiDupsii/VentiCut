@@ -64,10 +64,16 @@ class ClipHighlight(BaseModel):
     start_time: float = Field(..., description="Start time in seconds")
     end_time: float = Field(..., description="End time in seconds")
     duration: float = Field(..., description="Duration in seconds")
-    headline: str = Field(..., description="Suggested viral title/hook")
-    virality_score: float = Field(
-        ..., ge=0.0, le=100.0, description="Estimated virality score 0-100"
+    headline: str = Field(..., description="Suggested viral title")
+    hook_text: str = Field(default="", description="First 3-5 seconds opening hook words")
+    virality_score: float = Field(..., ge=0.0, le=100.0, description="Overall virality score 0-100")
+    hook_score: float = Field(
+        default=85.0, ge=0.0, le=100.0, description="Opening hook strength 0-100"
     )
+    retention_score: float = Field(
+        default=80.0, ge=0.0, le=100.0, description="Predicted viewer retention 0-100"
+    )
+    reasoning: str = Field(default="", description="Why this clip is predicted to perform well")
     summary: str | None = None
 
 
@@ -77,8 +83,12 @@ class CreateClipJobRequest(BaseModel):
         default="9:16", description="Target aspect ratio for the short"
     )
     max_duration_seconds: int = Field(default=60, description="Maximum length per short in seconds")
+    min_duration_seconds: int = Field(default=15, description="Minimum length per short in seconds")
     generate_subtitles: bool = Field(
         default=True, description="Whether to burn animated subtitles into clip"
+    )
+    webhook_url: str | None = Field(
+        default=None, description="Optional webhook URL for progress callbacks"
     )
 
 
@@ -89,6 +99,7 @@ class ClipJobResponse(BaseModel):
     progress: int = 0
     video_filename: str | None = None
     video_url: str | None = None
+    webhook_url: str | None = None
     metadata: VideoMetadata | None = None
     transcription: TranscriptionResult | None = None
     understanding: VideoUnderstandingResult | None = None

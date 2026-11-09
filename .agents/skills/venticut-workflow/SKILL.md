@@ -12,6 +12,7 @@ This skill guides the implementation of the VentiCut multi-agent AI video repurp
 - Always branch off `staging` using `feat/<agent-or-feature-name>`.
 - Always verify Ruff linting (`ruff check .`, `ruff format --check .`) and pytest tests before pushing.
 - Always provide the user with a ready-to-use PR title and description for merging into `staging`.
+- Explicit Branch Cleanup Reminder: Always explicitly remind the user to delete the feature branch on GitHub after merging the PR to keep the repository clean.
 - Mandatory Step-by-Step Reporting: In every turn where changes are introduced, provide a clear, chronological breakdown of actions taken and logic implemented.
 - Mandatory Ordered File Change Log: Provide an ordered list of all files created, modified, or deleted with clickable links (`file:///...`) and a brief explanation of changes in each file so the user can easily review and understand the workflow.
 
