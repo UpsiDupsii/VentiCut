@@ -26,3 +26,7 @@
   - Groq API (console.groq.com - free tier for fast Whisper transcription and Llama models).
   - Local tools: FFmpeg, yt-dlp, faster-whisper / whisper.
 - UI/UX Design: Clean, modern interface styled to complement the branding and color palette of `assets/logo.png`.
+
+## 4. Change Tracking and Reporting
+- Step-by-Step Reporting: In every turn where code or project files are modified, clearly report the chronological steps taken and why.
+- Ordered File Manifest: Provide a sequential list of all files created, modified, or removed with clickable links and brief explanations of what was changed in each file to facilitate self-review and project comprehension.

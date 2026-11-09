@@ -17,15 +17,18 @@ class Settings(BaseSettings):
     TEMP_DIR: Path = Path("storage/temp")
     PROCESSED_DIR: Path = Path("storage/processed")
 
-    # Processing limits & presets
+    # Processing limits and presets
     DEFAULT_TARGET_ASPECT_RATIO: str = "9:16"
     MAX_UPLOAD_SIZE_MB: int = 500
     MAX_SHORT_DURATION_SECONDS: int = 60
     MIN_SHORT_DURATION_SECONDS: int = 15
 
-    # Optional AI Keys
+    # AI and Transcription Providers
     OPENAI_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GROQ_API_KEY: str | None = None
+    GROQ_WHISPER_MODEL: str = "whisper-large-v3-turbo"
     WHISPER_MODEL: str = "base"
 
     model_config = SettingsConfigDict(
