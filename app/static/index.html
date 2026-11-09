@@ -3,637 +3,784 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VentiCut | AI Video RePurposing Pipeline</title>
+  <title>VentiCut - AI Video Repurposing Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
   <style>
     :root {
-      --bg-dark: #0a0f1d;
-      --bg-panel: #131f3f;
-      --bg-panel-hover: #182852;
-      --border-color: #223567;
-      --primary-indigo: #523dfe;
-      --primary-orange: #fe881a;
-      --text-white: #f8fafc;
-      --text-muted: #94a3b8;
-      --success-green: #10b981;
-      --accent-gradient: linear-gradient(135deg, #523dfe 0%, #fe881a 100%);
-      --card-gradient: linear-gradient(180deg, rgba(19, 31, 63, 0.8) 0%, rgba(14, 24, 49, 0.95) 100%);
+      --bg-base: #0b0f17;
+      --bg-surface: #111827;
+      --bg-subtle: #162032;
+      --bg-elevated: #1a2438;
+      
+      --border-subtle: #1e293b;
+      --border-strong: #2a374f;
+      --border-focus: #4f46e5;
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --accent-primary: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-subtle: rgba(79, 70, 229, 0.12);
+      
+      --status-success: #10b981;
+      --status-success-bg: rgba(16, 185, 129, 0.1);
+      --status-warning: #f59e0b;
+      --status-warning-bg: rgba(245, 158, 11, 0.1);
+      --status-info: #0ea5e9;
+      --status-info-bg: rgba(14, 165, 233, 0.1);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     body {
-      background-color: var(--bg-dark);
-      background-image: 
-        radial-gradient(circle at 15% 15%, rgba(82, 61, 254, 0.12) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(254, 136, 26, 0.08) 0%, transparent 40%);
-      color: var(--text-white);
+      background-color: var(--bg-base);
+      color: var(--text-primary);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      -webkit-font-smoothing: antialiased;
     }
 
     header {
-      padding: 24px 32px;
+      background-color: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 14px 28px;
+    }
+
+    .header-content {
+      max-width: 1280px;
+      margin: 0 auto;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid var(--border-color);
-      background: rgba(10, 15, 29, 0.8);
-      backdrop-filter: blur(12px);
-      position: sticky;
-      top: 0;
-      z-index: 100;
     }
 
-    .brand {
+    .brand-cluster {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
     }
 
-    .brand img {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(82, 61, 254, 0.35);
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      object-fit: contain;
+      border: 1px solid var(--border-subtle);
     }
 
-    .brand-text h1 {
-      font-size: 22px;
+    .brand-titles h1 {
+      font-size: 16px;
       font-weight: 700;
-      letter-spacing: -0.5px;
-      background: var(--accent-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
     }
 
-    .brand-text p {
-      font-size: 13px;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .badge-status {
+    .brand-titles p {
       font-size: 12px;
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.4);
-      color: #34d399;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-weight: 600;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 9999px;
+      background-color: var(--status-success-bg);
+      color: var(--status-success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .pill-badge .indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: currentColor;
     }
 
     main {
       flex: 1;
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
       width: 100%;
-      padding: 36px 24px;
+      padding: 32px 24px 64px 24px;
       display: flex;
       flex-direction: column;
-      gap: 32px;
+      gap: 28px;
     }
 
-    .hero-section {
-      text-align: center;
-      max-width: 720px;
-      margin: 0 auto;
+    .page-header {
+      margin-bottom: 4px;
     }
 
-    .hero-section h2 {
-      font-size: 32px;
-      font-weight: 800;
-      line-height: 1.25;
-      margin-bottom: 12px;
+    .page-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--text-primary);
+      margin-bottom: 6px;
     }
 
-    .hero-section p {
-      color: var(--text-muted);
-      font-size: 16px;
+    .page-header p {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 680px;
       line-height: 1.5;
     }
 
-    .input-grid {
+    .workspace-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      gap: 20px;
     }
 
-    @media (max-width: 768px) {
-      .input-grid {
+    @media (max-width: 860px) {
+      .workspace-grid {
         grid-template-columns: 1fr;
       }
     }
 
-    .card {
-      background: var(--card-gradient);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 28px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    .panel {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
       display: flex;
       flex-direction: column;
       gap: 18px;
-      transition: border-color 0.2s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
 
-    .card:hover {
-      border-color: rgba(82, 61, 254, 0.6);
-    }
-
-    .card-title {
-      font-size: 17px;
-      font-weight: 700;
-      color: var(--text-white);
+    .panel-header {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: space-between;
     }
 
-    .card-title span.tag {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 6px;
-      background: rgba(82, 61, 254, 0.2);
-      color: #818cf8;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-
-    .card-title span.tag.orange {
-      background: rgba(254, 136, 26, 0.2);
-      color: #fb923c;
-    }
-
-    .input-group {
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 8px;
     }
 
-    .input-group label {
+    .badge-subtle {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-subtle);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-field label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .input-control {
+      width: 100%;
+      background-color: var(--bg-base);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
       font-size: 13px;
-      font-weight: 600;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .input-control:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 1px var(--border-focus);
+    }
+
+    .input-control::placeholder {
       color: var(--text-muted);
     }
 
-    input[type="text"], input[type="url"] {
-      width: 100%;
-      background: #0d152a;
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 12px 16px;
-      color: var(--text-white);
-      font-size: 14px;
-      outline: none;
-      transition: all 0.2s ease;
-    }
-
-    input[type="text"]:focus, input[type="url"]:focus {
-      border-color: var(--primary-indigo);
-      box-shadow: 0 0 0 3px rgba(82, 61, 254, 0.25);
-    }
-
-    .drop-zone {
-      border: 2px dashed var(--border-color);
-      border-radius: 12px;
-      padding: 32px 20px;
+    .dropzone {
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius-md);
+      background-color: rgba(22, 32, 50, 0.4);
+      padding: 28px 16px;
       text-align: center;
       cursor: pointer;
-      background: rgba(13, 21, 42, 0.4);
-      transition: all 0.2s ease;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
     }
 
-    .drop-zone:hover, .drop-zone.dragover {
-      border-color: var(--primary-orange);
-      background: rgba(254, 136, 26, 0.05);
+    .dropzone:hover, .dropzone.dragover {
+      background-color: var(--bg-subtle);
+      border-color: var(--accent-primary);
     }
 
-    .drop-zone p.title {
-      font-size: 14px;
-      font-weight: 600;
+    .dropzone-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
     }
 
-    .drop-zone p.sub {
+    .dropzone-hint {
       font-size: 12px;
       color: var(--text-muted);
     }
 
-    .btn {
-      background: var(--accent-gradient);
-      border: none;
-      border-radius: 10px;
+    .btn-action {
+      background-color: var(--accent-primary);
       color: #ffffff;
-      padding: 13px 24px;
-      font-size: 14px;
-      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
-      transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+      transition: background-color 0.15s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      box-shadow: 0 4px 18px rgba(82, 61, 254, 0.35);
+      gap: 6px;
     }
 
-    .btn:hover:not(:disabled) {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 24px rgba(82, 61, 254, 0.45);
+    .btn-action:hover:not(:disabled) {
+      background-color: var(--accent-hover);
     }
 
-    .btn:disabled {
+    .btn-action:disabled {
       opacity: 0.5;
       cursor: not-allowed;
-      transform: none;
     }
 
-    /* Pipeline Status Section */
-    .status-panel {
-      background: var(--card-gradient);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 28px;
+    /* Execution Pipeline Monitor */
+    .monitor-panel {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
       display: none;
       flex-direction: column;
-      gap: 24px;
+      gap: 20px;
     }
 
-    .status-header {
+    .monitor-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       flex-wrap: wrap;
       gap: 12px;
     }
 
-    .progress-bar-container {
-      width: 100%;
-      height: 8px;
-      background: #0d152a;
-      border-radius: 10px;
-      overflow: hidden;
-      border: 1px solid var(--border-color);
+    .monitor-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
     }
 
-    .progress-bar {
+    .monitor-status-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background-color: var(--bg-base);
+      border-radius: 9999px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .progress-fill {
       height: 100%;
       width: 0%;
-      background: var(--accent-gradient);
-      transition: width 0.4s ease;
+      background-color: var(--accent-primary);
+      transition: width 0.3s ease;
     }
 
-    .pipeline-stepper {
+    .stepper-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 12px;
     }
 
     @media (max-width: 768px) {
-      .pipeline-stepper {
+      .stepper-row {
         grid-template-columns: 1fr 1fr;
       }
     }
 
-    .step-box {
-      background: #0d152a;
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .step-box.active {
-      border-color: var(--primary-indigo);
-      box-shadow: 0 0 12px rgba(82, 61, 254, 0.25);
-    }
-
-    .step-box.completed {
-      border-color: var(--success-green);
-    }
-
-    .step-num {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-    }
-
-    .step-name {
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    /* Results Tabs */
-    .tabs-nav {
-      display: flex;
-      gap: 8px;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 8px;
-      overflow-x: auto;
-    }
-
-    .tab-btn {
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-muted);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .tab-btn.active {
-      background: rgba(82, 61, 254, 0.15);
-      border-color: rgba(82, 61, 254, 0.4);
-      color: #ffffff;
-    }
-
-    .tab-content {
-      display: none;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .tab-content.active {
-      display: flex;
-    }
-
-    .tag-chip {
-      display: inline-block;
-      padding: 4px 10px;
-      background: rgba(82, 61, 254, 0.15);
-      border: 1px solid rgba(82, 61, 254, 0.3);
-      color: #c7d2fe;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      margin-right: 6px;
-      margin-bottom: 6px;
-    }
-
-    .tag-chip.orange {
-      background: rgba(254, 136, 26, 0.15);
-      border-color: rgba(254, 136, 26, 0.3);
-      color: #fed7aa;
-    }
-
-    .transcript-box {
-      max-height: 380px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding-right: 8px;
-    }
-
-    .segment-card {
-      background: #0d152a;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px 16px;
+    .stepper-card {
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
 
-    .segment-meta {
-      font-size: 11px;
-      font-weight: 700;
-      color: #818cf8;
+    .stepper-card.active {
+      border-color: var(--accent-primary);
+      background-color: var(--bg-elevated);
     }
 
-    .segment-text {
+    .stepper-card.completed {
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .stepper-card.completed .step-index {
+      color: var(--status-success);
+    }
+
+    .step-index {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 2px;
+    }
+
+    .tab-item {
+      background: none;
+      border: none;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .tab-item:hover {
+      color: var(--text-primary);
+      background-color: var(--bg-subtle);
+    }
+
+    .tab-item.active {
+      color: var(--text-primary);
+      background-color: var(--bg-subtle);
+      border-bottom: 2px solid var(--accent-primary);
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    }
+
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 8px;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 4px;
+    }
+
+    .info-card {
+      background-color: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+
+    .badge-chip {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-subtle);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .segment-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .segment-item {
+      background-color: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .segment-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--status-info);
+      font-weight: 500;
+    }
+
+    .segment-body {
       font-size: 13px;
       line-height: 1.5;
-      color: var(--text-white);
+      color: var(--text-primary);
     }
 
-    .log-box {
-      background: #070a14;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
+    .log-stream {
+      background-color: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
       padding: 14px;
-      font-family: monospace;
+      font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
-      color: #94a3b8;
-      max-height: 200px;
+      color: var(--text-secondary);
+      max-height: 220px;
       overflow-y: auto;
       line-height: 1.6;
     }
 
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .metric-card {
+      background-color: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+
+    .metric-card .metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .metric-card .metric-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 4px;
+    }
+
     footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 20px 24px;
       text-align: center;
-      padding: 24px;
       font-size: 12px;
       color: var(--text-muted);
-      border-top: 1px solid var(--border-color);
+      background-color: var(--bg-surface);
     }
   </style>
 </head>
 <body>
   <header>
-    <div class="brand">
-      <img src="/assets/logo.png" alt="VentiCut Logo" />
-      <div class="brand-text">
-        <h1>VentiCut</h1>
-        <p>AI Video RePurposing Pipeline</p>
+    <div class="header-content">
+      <div class="brand-cluster">
+        <img class="brand-logo" src="/assets/logo.png" alt="VentiCut Logo" />
+        <div class="brand-titles">
+          <h1>VentiCut</h1>
+          <p>AI Video Repurposing Pipeline</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="pill-badge">
+          <span class="indicator"></span>
+          Pipeline Ready
+        </span>
       </div>
     </div>
-    <div class="badge-status">Multi-Agent System Online</div>
   </header>
 
   <main>
-    <div class="hero-section">
-      <h2>Transform Long Videos into High-Impact Viral Shorts</h2>
+    <div class="page-header">
+      <h2>Video Ingestion and Analysis</h2>
       <p>
-        Autonomous multi-agent pipeline: Ingestion, Transcription Agent (Groq Whisper), and Video Understanding Agent (Google Gemini).
+        Upload long-form media or submit a YouTube source to run initial transcription and contextual understanding agents.
       </p>
     </div>
 
-    <!-- Input Section -->
-    <div class="input-grid">
-      <!-- YouTube Link Card -->
-      <div class="card">
-        <div class="card-title">
-          YouTube Ingestion
-          <span class="tag">Free Engine</span>
+    <!-- Inputs -->
+    <div class="workspace-grid">
+      <!-- YouTube Ingestion -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            YouTube Source
+            <span class="badge-subtle">yt-dlp</span>
+          </div>
         </div>
-        <div class="input-group">
-          <label for="ytUrl">Enter YouTube Video URL</label>
+        <div class="form-field">
+          <label for="ytUrl">Video URL</label>
           <input
             type="url"
+            class="input-control"
             id="ytUrl"
             placeholder="https://www.youtube.com/watch?v=..."
           />
         </div>
-        <button class="btn" id="ytBtn" onclick="submitYoutubeJob()">
-          Fetch and Process with Agents
+        <button class="btn-action" id="ytBtn" onclick="submitYoutubeJob()">
+          Process Source
         </button>
       </div>
 
-      <!-- File Upload Card -->
-      <div class="card">
-        <div class="card-title">
-          Direct Video Upload
-          <span class="tag orange">Local Files</span>
+      <!-- File Upload -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            Direct File Upload
+            <span class="badge-subtle">Local</span>
+          </div>
         </div>
-        <input type="file" id="videoFile" accept="video/mp4,video/x-matroska,video/quicktime,video/webm" style="display: none;" onchange="handleFileSelected(event)" />
-        <div class="drop-zone" id="dropZone" onclick="document.getElementById('videoFile').click()">
-          <p class="title" id="dropZoneTitle">Drag and drop video here or click to browse</p>
-          <p class="sub">Supports MP4, MOV, MKV, WebM up to 500MB</p>
+        <input
+          type="file"
+          id="videoFile"
+          accept="video/mp4,video/x-matroska,video/quicktime,video/webm"
+          style="display: none;"
+          onchange="handleFileSelected(event)"
+        />
+        <div class="dropzone" id="dropZone" onclick="document.getElementById('videoFile').click()">
+          <p class="dropzone-label" id="dropZoneTitle">Select video file or drag and drop</p>
+          <p class="dropzone-hint">MP4, MOV, MKV, WebM up to 500 MB</p>
         </div>
-        <button class="btn" id="uploadBtn" onclick="submitUploadJob()" disabled>
-          Upload and Process with Agents
+        <button class="btn-action" id="uploadBtn" onclick="submitUploadJob()" disabled>
+          Upload and Analyze
         </button>
       </div>
     </div>
 
-    <!-- Pipeline Live Visualizer -->
-    <div class="status-panel" id="statusPanel">
-      <div class="status-header">
+    <!-- Pipeline Execution Monitor -->
+    <div class="monitor-panel" id="monitorPanel">
+      <div class="monitor-header">
         <div>
-          <h3 style="font-size: 18px; margin-bottom: 4px;" id="jobTitle">Processing Video</h3>
-          <p style="font-size: 13px; color: var(--text-muted);" id="jobStatusMsg">Initializing pipeline...</p>
+          <h3 id="jobTitle">Job Execution</h3>
+          <p class="monitor-status-text" id="jobStatusMsg">Initializing pipeline...</p>
         </div>
-        <div style="font-size: 18px; font-weight: 800; color: #818cf8;" id="progressText">0%</div>
-      </div>
-
-      <div class="progress-bar-container">
-        <div class="progress-bar" id="progressBar"></div>
-      </div>
-
-      <div class="pipeline-stepper">
-        <div class="step-box" id="step1">
-          <span class="step-num">Step 1</span>
-          <span class="step-name">Ingestion and FFmpeg</span>
-        </div>
-        <div class="step-box" id="step2">
-          <span class="step-num">Step 2</span>
-          <span class="step-name">Transcription Agent</span>
-        </div>
-        <div class="step-box" id="step3">
-          <span class="step-num">Step 3</span>
-          <span class="step-name">Understanding Agent</span>
-        </div>
-        <div class="step-box" id="step4">
-          <span class="step-num">Step 4</span>
-          <span class="step-name">Viral Hooks & Editing</span>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600;" id="progressPct">
+          0%
         </div>
       </div>
 
-      <!-- Agent Results Tabs -->
-      <div class="tabs-nav">
-        <button class="tab-btn active" onclick="switchTab('understandingTab', this)">Video Understanding</button>
-        <button class="tab-btn" onclick="switchTab('transcriptionTab', this)">Transcript & Timestamps</button>
-        <button class="tab-btn" onclick="switchTab('metadataTab', this)">Video Metadata</button>
-        <button class="tab-btn" onclick="switchTab('logsTab', this)">Execution Logs</button>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressBar"></div>
       </div>
 
-      <!-- Tab 1: Video Understanding Agent Output -->
-      <div class="tab-content active" id="understandingTab">
+      <div class="stepper-row">
+        <div class="stepper-card" id="step1">
+          <span class="step-index">Step 1</span>
+          <span class="step-title">Ingestion & Audio</span>
+        </div>
+        <div class="stepper-card" id="step2">
+          <span class="step-index">Step 2</span>
+          <span class="step-title">Transcription Agent</span>
+        </div>
+        <div class="stepper-card" id="step3">
+          <span class="step-index">Step 3</span>
+          <span class="step-title">Understanding Agent</span>
+        </div>
+        <div class="stepper-card" id="step4">
+          <span class="step-index">Step 4</span>
+          <span class="step-title">Next: Viral Clips</span>
+        </div>
+      </div>
+
+      <!-- Result Tabs -->
+      <div class="tab-bar">
+        <button class="tab-item active" onclick="selectTab('understandingPane', this)">Understanding</button>
+        <button class="tab-item" onclick="selectTab('transcriptionPane', this)">Transcript</button>
+        <button class="tab-item" onclick="selectTab('metadataPane', this)">Metadata</button>
+        <button class="tab-item" onclick="selectTab('logsPane', this)">Logs</button>
+      </div>
+
+      <!-- Tab: Understanding -->
+      <div class="tab-pane active" id="understandingPane">
         <div>
-          <h4 style="font-size: 14px; margin-bottom: 6px; color: #818cf8;">Summary</h4>
-          <p id="understandingSummary" style="font-size: 13px; line-height: 1.6; color: var(--text-muted);">
-            Analysis pending...
-          </p>
+          <div class="section-title">Summary</div>
+          <div class="info-card">
+            <p id="understandingSummary" style="font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+              Awaiting agent analysis...
+            </p>
+          </div>
         </div>
+
         <div>
-          <h4 style="font-size: 14px; margin-bottom: 6px; color: #818cf8;">Key Topics</h4>
+          <div class="section-title">Identified Topics</div>
           <div id="understandingTopics"></div>
         </div>
-        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
-          <div>
-            <h4 style="font-size: 14px; margin-bottom: 4px; color: #818cf8;">Tone</h4>
-            <span class="tag-chip orange" id="understandingTone">Conversational</span>
+
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Tone</div>
+            <div class="metric-value" id="understandingTone">-</div>
           </div>
-          <div>
-            <h4 style="font-size: 14px; margin-bottom: 4px; color: #818cf8;">Pacing</h4>
-            <span class="tag-chip" id="understandingPacing">Moderate</span>
+          <div class="metric-card">
+            <div class="metric-label">Pacing</div>
+            <div class="metric-value" id="understandingPacing">-</div>
           </div>
-          <div>
-            <h4 style="font-size: 14px; margin-bottom: 4px; color: #818cf8;">Target Audience</h4>
-            <p id="understandingAudience" style="font-size: 13px; color: var(--text-muted);">-</p>
+          <div class="metric-card">
+            <div class="metric-label">Target Audience</div>
+            <div class="metric-value" id="understandingAudience">-</div>
           </div>
         </div>
+
         <div>
-          <h4 style="font-size: 14px; margin-bottom: 6px; color: #818cf8;">Suggested Viral Hooks</h4>
-          <ul id="understandingHooks" style="font-size: 13px; line-height: 1.6; padding-left: 20px; color: var(--text-white);"></ul>
+          <div class="section-title">Suggested Opening Hooks</div>
+          <div class="info-card">
+            <ul id="understandingHooks" style="font-size: 13px; line-height: 1.6; padding-left: 18px; color: var(--text-primary);"></ul>
+          </div>
         </div>
       </div>
 
-      <!-- Tab 2: Transcription Agent Output -->
-      <div class="tab-content" id="transcriptionTab">
+      <!-- Tab: Transcription -->
+      <div class="tab-pane" id="transcriptionPane">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 13px; color: var(--text-muted);" id="transcriptionStats">Segments: 0</span>
-          <button class="btn" style="padding: 6px 14px; font-size: 12px;" onclick="copyFullTranscript()">Copy Full Text</button>
+          <span style="font-size: 12px; color: var(--text-muted);" id="transcriptionStats">Segments: 0</span>
+          <button class="btn-action" style="padding: 6px 12px; font-size: 12px;" onclick="copyTranscript()">
+            Copy Full Transcript
+          </button>
         </div>
-        <div class="transcript-box" id="transcriptList">
-          <p style="font-size: 13px; color: var(--text-muted);">Awaiting transcription...</p>
-        </div>
-      </div>
-
-      <!-- Tab 3: Video Metadata -->
-      <div class="tab-content" id="metadataTab">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;" id="metadataGrid">
-          <div class="step-box"><span class="step-num">Duration</span><span class="step-name" id="metaDuration">-</span></div>
-          <div class="step-box"><span class="step-num">Resolution</span><span class="step-name" id="metaResolution">-</span></div>
-          <div class="step-box"><span class="step-num">Aspect Ratio</span><span class="step-name" id="metaAspect">-</span></div>
-          <div class="step-box"><span class="step-num">Framerate</span><span class="step-name" id="metaFps">-</span></div>
-          <div class="step-box"><span class="step-num">File Size</span><span class="step-name" id="metaSize">-</span></div>
+        <div class="segment-stream" id="segmentStream">
+          <p style="font-size: 13px; color: var(--text-muted);">Awaiting transcription data...</p>
         </div>
       </div>
 
-      <!-- Tab 4: Logs -->
-      <div class="tab-content" id="logsTab">
-        <div class="log-box" id="logConsole">Pipeline logs will appear here.</div>
+      <!-- Tab: Metadata -->
+      <div class="tab-pane" id="metadataPane">
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Duration</div>
+            <div class="metric-value" id="metaDuration">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Resolution</div>
+            <div class="metric-value" id="metaResolution">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Aspect Ratio</div>
+            <div class="metric-value" id="metaAspect">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Framerate</div>
+            <div class="metric-value" id="metaFps">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">File Size</div>
+            <div class="metric-value" id="metaSize">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Logs -->
+      <div class="tab-pane" id="logsPane">
+        <div class="log-stream" id="logStream">Pipeline execution events will be logged here.</div>
       </div>
     </div>
   </main>
 
   <footer>
-    VentiCut &bull; AI Video RePurposing Pipeline &bull; Free Tier Multi-Agent Architecture
+    VentiCut &bull; Enterprise Video Repurposing Pipeline &bull; SDLC Staging Release
   </footer>
 
   <script>
     let activeJobId = null;
-    let pollInterval = null;
+    let pollTimer = null;
     let selectedFile = null;
-    let cachedTranscriptText = "";
+    let fullTranscriptText = "";
 
-    function handleFileSelected(e) {
-      if (e.target.files && e.target.files[0]) {
-        selectedFile = e.target.files[0];
-        document.getElementById('dropZoneTitle').innerText = selectedFile.name + " (" + (selectedFile.size / (1024*1024)).toFixed(1) + " MB)";
+    function handleFileSelected(event) {
+      if (event.target.files && event.target.files[0]) {
+        selectedFile = event.target.files[0];
+        const sizeMb = (selectedFile.size / (1024 * 1024)).toFixed(1);
+        document.getElementById('dropZoneTitle').innerText = `${selectedFile.name} (${sizeMb} MB)`;
         document.getElementById('uploadBtn').disabled = false;
       }
     }
 
-    // Drag and drop handlers
     const dropZone = document.getElementById('dropZone');
     ['dragenter', 'dragover'].forEach(name => {
-      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }, false);
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
     });
     ['dragleave', 'drop'].forEach(name => {
-      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }, false);
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); });
     });
     dropZone.addEventListener('drop', (e) => {
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
         selectedFile = e.dataTransfer.files[0];
-        document.getElementById('dropZoneTitle').innerText = selectedFile.name + " (" + (selectedFile.size / (1024*1024)).toFixed(1) + " MB)";
+        const sizeMb = (selectedFile.size / (1024 * 1024)).toFixed(1);
+        document.getElementById('dropZoneTitle').innerText = `${selectedFile.name} (${sizeMb} MB)`;
         document.getElementById('uploadBtn').disabled = false;
       }
     });
@@ -641,11 +788,11 @@
     async function submitYoutubeJob() {
       const urlInput = document.getElementById('ytUrl').value.trim();
       if (!urlInput) {
-        alert("Please enter a valid YouTube video URL");
+        alert("Please provide a valid YouTube video URL.");
         return;
       }
-
       document.getElementById('ytBtn').disabled = true;
+
       try {
         const resp = await fetch('/api/v1/clips/jobs', {
           method: 'POST',
@@ -653,40 +800,40 @@
           body: JSON.stringify({ video_url: urlInput })
         });
         const data = await resp.json();
-        startJobPolling(data.job_id);
+        trackJob(data.job_id);
       } catch (err) {
-        alert("Failed to submit YouTube job: " + err);
+        alert("Failed to submit job: " + err);
         document.getElementById('ytBtn').disabled = false;
       }
     }
 
     async function submitUploadJob() {
       if (!selectedFile) return;
-
       document.getElementById('uploadBtn').disabled = true;
-      const formData = new FormData();
-      formData.append('file', selectedFile);
+
+      const form = new FormData();
+      form.append('file', selectedFile);
 
       try {
         const resp = await fetch('/api/v1/clips/upload', {
           method: 'POST',
-          body: formData
+          body: form
         });
         const data = await resp.json();
-        startJobPolling(data.job_id);
+        trackJob(data.job_id);
       } catch (err) {
-        alert("Failed to upload video: " + err);
+        alert("Upload failed: " + err);
         document.getElementById('uploadBtn').disabled = false;
       }
     }
 
-    function startJobPolling(jobId) {
+    function trackJob(jobId) {
       activeJobId = jobId;
-      document.getElementById('statusPanel').style.display = 'flex';
-      document.getElementById('statusPanel').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('monitorPanel').style.display = 'flex';
+      document.getElementById('monitorPanel').scrollIntoView({ behavior: 'smooth' });
 
-      if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(pollJobState, 1500);
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(pollJobState, 1500);
       pollJobState();
     }
 
@@ -698,64 +845,57 @@
         if (!resp.ok) return;
         const job = await resp.json();
 
-        // Update progress
         const pct = job.progress || 0;
-        document.getElementById('progressText').innerText = pct + "%";
-        document.getElementById('progressBar').style.width = pct + "%";
-        document.getElementById('jobStatusMsg').innerText = job.message || "Working...";
-        document.getElementById('jobTitle').innerText = job.video_filename || "Processing Video";
+        document.getElementById('progressPct').innerText = `${pct}%`;
+        document.getElementById('progressBar').style.width = `${pct}%`;
+        document.getElementById('jobStatusMsg').innerText = job.message || "Processing...";
+        document.getElementById('jobTitle').innerText = job.video_filename || "Job Execution";
 
-        // Update Steppers
-        updateSteppers(job.status, pct);
+        updateStepperCards(pct);
 
-        // Update Logs
         if (job.logs && job.logs.length > 0) {
-          document.getElementById('logConsole').innerText = job.logs.join('\n');
-          document.getElementById('logConsole').scrollTop = document.getElementById('logConsole').scrollHeight;
+          const logStream = document.getElementById('logStream');
+          logStream.innerText = job.logs.join('\n');
+          logStream.scrollTop = logStream.scrollHeight;
         }
 
-        // Update Metadata
         if (job.metadata) {
-          document.getElementById('metaDuration').innerText = job.metadata.duration + "s";
-          document.getElementById('metaResolution').innerText = job.metadata.width + " x " + job.metadata.height;
+          document.getElementById('metaDuration').innerText = `${job.metadata.duration}s`;
+          document.getElementById('metaResolution').innerText = `${job.metadata.width}x${job.metadata.height}`;
           document.getElementById('metaAspect').innerText = job.metadata.aspect_ratio;
-          document.getElementById('metaFps').innerText = job.metadata.fps + " fps";
-          document.getElementById('metaSize').innerText = job.metadata.file_size_mb + " MB";
+          document.getElementById('metaFps').innerText = `${job.metadata.fps} fps`;
+          document.getElementById('metaSize').innerText = `${job.metadata.file_size_mb} MB`;
         }
 
-        // Update Transcription Agent Tab
         if (job.transcription) {
-          cachedTranscriptText = job.transcription.full_text || "";
+          fullTranscriptText = job.transcription.full_text || "";
           const segments = job.transcription.segments || [];
-          document.getElementById('transcriptionStats').innerText = `Segments: ${segments.length} | Language: ${job.transcription.language.toUpperCase()}`;
-          
-          let segHtml = "";
+          document.getElementById('transcriptionStats').innerText = `Segments: ${segments.length} | Lang: ${job.transcription.language.toUpperCase()}`;
+
+          let html = "";
           segments.forEach(seg => {
-            segHtml += `
-              <div class="segment-card">
-                <span class="segment-meta">${seg.start.toFixed(1)}s - ${seg.end.toFixed(1)}s</span>
-                <p class="segment-text">${seg.text}</p>
+            html += `
+              <div class="segment-item">
+                <div class="segment-time">${seg.start.toFixed(2)}s - ${seg.end.toFixed(2)}s</div>
+                <div class="segment-body">${seg.text}</div>
               </div>
             `;
           });
-          document.getElementById('transcriptList').innerHTML = segHtml || "<p>No segments found.</p>";
+          document.getElementById('segmentStream').innerHTML = html || "<p>No segments found.</p>";
         }
 
-        // Update Understanding Agent Tab
         if (job.understanding) {
-          document.getElementById('understandingSummary').innerText = job.understanding.summary || "No summary.";
+          document.getElementById('understandingSummary').innerText = job.understanding.summary || "No summary provided.";
           document.getElementById('understandingTone').innerText = job.understanding.tone || "General";
           document.getElementById('understandingPacing').innerText = job.understanding.pacing || "Moderate";
           document.getElementById('understandingAudience').innerText = job.understanding.target_audience || "General";
 
-          // Topics
           let topicHtml = "";
           (job.understanding.topics || []).forEach(t => {
-            topicHtml += `<span class="tag-chip">${t}</span>`;
+            topicHtml += `<span class="badge-chip">${t}</span>`;
           });
           document.getElementById('understandingTopics').innerHTML = topicHtml;
 
-          // Hooks
           let hookHtml = "";
           (job.understanding.potential_hooks || []).forEach(h => {
             hookHtml += `<li>${h}</li>`;
@@ -764,23 +904,22 @@
         }
 
         if (job.status === 'completed' || job.status === 'failed') {
-          clearInterval(pollInterval);
+          clearInterval(pollTimer);
           document.getElementById('ytBtn').disabled = false;
           document.getElementById('uploadBtn').disabled = false;
         }
-
       } catch (err) {
-        console.error("Poll error:", err);
+        console.error("Polling error:", err);
       }
     }
 
-    function updateSteppers(status, pct) {
+    function updateStepperCards(pct) {
       const s1 = document.getElementById('step1');
       const s2 = document.getElementById('step2');
       const s3 = document.getElementById('step3');
       const s4 = document.getElementById('step4');
 
-      [s1, s2, s3, s4].forEach(s => s.className = 'step-box');
+      [s1, s2, s3, s4].forEach(s => s.className = 'stepper-card');
 
       if (pct >= 20) s1.classList.add('completed'); else if (pct > 0) s1.classList.add('active');
       if (pct >= 60) s2.classList.add('completed'); else if (pct >= 20) s2.classList.add('active');
@@ -788,17 +927,17 @@
       if (pct >= 100) s4.classList.add('completed'); else if (pct >= 85) s4.classList.add('active');
     }
 
-    function switchTab(tabId, btn) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    function selectTab(paneId, btn) {
+      document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById(tabId).classList.add('active');
+      document.getElementById(paneId).classList.add('active');
     }
 
-    function copyFullTranscript() {
-      if (!cachedTranscriptText) return;
-      navigator.clipboard.writeText(cachedTranscriptText).then(() => {
-        alert("Transcript copied to clipboard!");
+    function copyTranscript() {
+      if (!fullTranscriptText) return;
+      navigator.clipboard.writeText(fullTranscriptText).then(() => {
+        alert("Transcript copied to clipboard.");
       });
     }
   </script>
