@@ -7,24 +7,28 @@ export default function ExecutionMonitor({ job }) {
 
   const getStepClass = (stepNum) => {
     if (stepNum === 1) {
-      if (pct >= 35) return "completed";
+      if (pct >= 30) return "completed";
       if (pct > 0) return "active";
     }
     if (stepNum === 2) {
-      if (pct >= 55) return "completed";
-      if (pct >= 35) return "active";
+      if (pct >= 50) return "completed";
+      if (pct >= 30) return "active";
     }
     if (stepNum === 3) {
-      if (pct >= 70) return "completed";
-      if (pct >= 55) return "active";
+      if (pct >= 65) return "completed";
+      if (pct >= 50) return "active";
     }
     if (stepNum === 4) {
-      if (pct >= 85) return "completed";
-      if (pct >= 70) return "active";
+      if (pct >= 80) return "completed";
+      if (pct >= 65) return "active";
     }
     if (stepNum === 5) {
+      if (pct >= 95) return "completed";
+      if (pct >= 80) return "active";
+    }
+    if (stepNum === 6) {
       if (pct >= 100) return "completed";
-      if (pct >= 85) return "active";
+      if (pct >= 95) return "active";
     }
     return "";
   };
@@ -34,7 +38,8 @@ export default function ExecutionMonitor({ job }) {
     { num: 2, label: "Step 2", title: "Transcription Agent" },
     { num: 3, label: "Step 3", title: "Understanding Agent" },
     { num: 4, label: "Step 4", title: "Viral Clip Finder" },
-    { num: 5, label: "Step 5", title: "Hook Generator Agent" },
+    { num: 5, label: "Step 5", title: "Hook Generator" },
+    { num: 6, label: "Step 6", title: "Video Editing Agent" },
   ];
 
   return (
@@ -92,7 +97,7 @@ export default function ExecutionMonitor({ job }) {
       {/* Stepper Cards */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
         gap: "10px",
       }}>
         {steps.map((s) => {

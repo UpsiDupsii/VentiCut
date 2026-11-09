@@ -18,7 +18,7 @@
 
 VentiCut separates decision-making from execution:
 - **LLMs make editorial and analytical decisions** (detecting timestamps, identifying viral moments, generating visual hooks, assessing retention).
-- **Deterministic tools execute media transformations** (yt-dlp downloads videos, FFmpeg extracts 16kHz audio and crops 9:16 vertical frames, Whisper transcribes).
+- **Deterministic tools execute media transformations** (yt-dlp downloads videos, FFmpeg extracts 16kHz audio, crops 9:16 vertical frames, applies punch-in effects, and renders final MP4 shorts).
 
 ```
 Long-Form Video (YouTube URL or File Upload)
@@ -54,12 +54,16 @@ Long-Form Video (YouTube URL or File Upload)
        └───────────────────────────┘
                      │
                      ▼
+       ┌───────────────────────────┐
+       │ Agent 5: Video Editing    │ ──> 9:16 Smart Crop, Punch-in Zoom, Render
+       └───────────────────────────┘
+                     │
+                     ▼
           [Upcoming Agent Pipeline]
-   ┌───────────────────────────────────┐
-   │ Agent 5: Video Editing (Cropping) │
-   │ Agent 6: Caption Subtitles        │
-   │ Agent 7: Quality Review Agent     │
-   └───────────────────────────────────┘
+       ┌───────────────────────────┐
+       │ Agent 6: Caption Subtitles│
+       │ Agent 7: Quality Review   │
+       └───────────────────────────┘
 ```
 
 ---
@@ -95,7 +99,14 @@ Long-Form Video (YouTube URL or File Upload)
   - **Contrarian**: Challenges mainstream belief or conventional wisdom.
   - **Problem-Agitation**: Pinpoints a frustrating mistake and promises immediate relief.
   - **Direct Value**: Delivers an actionable secret, hack, or formula.
-- Automatically generates deterministic FFmpeg `drawtext` overlay parameters (e.g. `drawtext=text='...':fontcolor=yellow:fontsize=48:x=(w-text_w)/2:y=180:enable='between(t,0,3.5)'`).
+- Automatically generates deterministic FFmpeg `drawtext` overlay parameters.
+
+### 6. Video Editing Agent (`app/services/video_editing_agent.py`)
+- Deterministically crops horizontal 16:9 video to vertical 9:16 format (1080x1920) optimized for TikTok, Instagram Reels, and YouTube Shorts.
+- Applies an opening **pattern interrupt punch-in zoom effect** (1.08x zoom for the first 2.5 seconds) to visually grab viewer attention and prevent swiping.
+- Burns high-contrast visual title cards and hook banners into the opening 3.5 seconds.
+- Applies mobile loudness normalization (`loudnorm=I=-16:TP=-1.5:LRA=11`) and smooth audio fade transitions to eliminate audio clicks on cut boundaries.
+- Renders standalone vertical MP4 files saved to `storage/processed/{clip_id}.mp4` accessible via streaming API.
 
 ---
 
@@ -108,8 +119,8 @@ frontend/src/
 ├── components/
 │   ├── Navbar.jsx            # Brand header, navigation links, and Admin Center trigger
 │   ├── VideoIngestion.jsx    # Dual-input card for YouTube URLs and file uploads
-│   ├── ExecutionMonitor.jsx  # Multi-stage pipeline progress stepper (Steps 1 to 5)
-│   ├── ViralClipsTab.jsx     # Detected viral clips and 4-option Hook Generator grid
+│   ├── ExecutionMonitor.jsx  # Multi-stage pipeline progress stepper (Steps 1 to 6)
+│   ├── ViralClipsTab.jsx     # Detected clips, 4 hook options, video player, and MP4 downloads
 │   ├── UnderstandingTab.jsx  # Narrative arc, pacing, tone, and extracted topics
 │   ├── TranscriptTab.jsx     # Searchable dialogue stream with timestamps
 │   ├── MetadataTab.jsx       # FFprobe technical stream diagnostics
@@ -232,9 +243,10 @@ Observe the execution monitor as the pipeline progresses through:
 - **Step 3: Understanding Agent**: Generates narrative arc and topic comprehension via Gemini.
 - **Step 4: Viral Clip Finder**: Identifies 15-60s candidate segments with virality scores via Groq.
 - **Step 5: Hook Generator Agent**: Crafts 4 viral hook variations and FFmpeg overlay filters.
+- **Step 6: Video Editing Agent**: Crops to 9:16 vertical, applies opening punch-in zoom, normalizes loudness, and renders output MP4.
 
-### 4. Inspect Results
-- **Viral Clips Tab**: Browse detected highlights, inspect virality/retention scores, and view 4 tailored hook options (`Curiosity Gap`, `Contrarian`, `Problem-Agitation`, `Direct Value`).
+### 4. Inspect Results & Download Rendered Shorts
+- **Viral Clips Tab**: Browse detected highlights, inspect virality/retention scores, view 4 tailored hook options, play the rendered vertical 9:16 short directly in the browser video player, and click **Download MP4** to save the finished short.
 - **Understanding Tab**: Review the Gemini executive briefing, narrative tone, pacing, and extracted themes.
 - **Transcript Tab**: Search dialogues in real time with word timestamps.
 - **Metadata Tab**: Review technical video stream specs (bitrate, fps, codec, resolution).
@@ -256,6 +268,7 @@ Observe the execution monitor as the pipeline progresses through:
 | `POST` | `/api/v1/clips/jobs` | Submit a YouTube video URL for background processing |
 | `POST` | `/api/v1/clips/upload` | Upload a video file for background processing |
 | `GET` | `/api/v1/clips/jobs/{id}` | Poll execution status, progress, and generated clips |
+| `GET` | `/api/v1/clips/downloads/{clip_id}` | Stream or download rendered vertical 9:16 video short |
 | `POST` | `/api/v1/admin/login` | Authenticate administrator and receive JWT token |
 | `GET` | `/api/v1/admin/stats` | Retrieve live token usage and storage telemetry |
 

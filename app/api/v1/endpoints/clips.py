@@ -1,6 +1,7 @@
 import shutil
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.models.clip import ClipJobResponse, CreateClipJobRequest
@@ -103,3 +104,18 @@ def get_job(job_id: str):
 )
 def list_jobs():
     return list_all_jobs()
+
+
+@router.get(
+    "/downloads/{clip_id}",
+    summary="Download or stream a rendered vertical 9:16 video clip",
+)
+def download_clip(clip_id: str):
+    clip_path = settings.PROCESSED_DIR / f"{clip_id}.mp4"
+    if not clip_path.exists():
+        raise HTTPException(status_code=404, detail="Rendered clip not found")
+    return FileResponse(
+        path=clip_path,
+        media_type="video/mp4",
+        filename=f"venticut_short_{clip_id}.mp4",
+    )

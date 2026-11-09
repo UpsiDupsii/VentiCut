@@ -103,6 +103,19 @@ class ClipHighlight(BaseModel):
     selected_hook: HookVariant | None = Field(
         default=None, description="Currently selected hook variant for rendering"
     )
+    rendered_video_path: str | None = Field(
+        default=None, description="Local file path to rendered vertical short video"
+    )
+    rendered_url: str | None = Field(
+        default=None, description="Streaming and download API endpoint for rendered clip"
+    )
+    editing_effects: list[str] = Field(
+        default=[], description="List of visual and audio effects applied by Video Editing Agent"
+    )
+    layout_mode: str = Field(
+        default="smart_crop_center",
+        description="Layout mode: smart_crop_center, blurred_background_stack, original",
+    )
 
 
 class CreateClipJobRequest(BaseModel):
