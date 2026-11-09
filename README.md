@@ -18,7 +18,7 @@
 
 VentiCut separates decision-making from execution:
 - **LLMs make editorial and analytical decisions** (detecting timestamps, identifying viral moments, generating visual hooks, assessing retention).
-- **Deterministic tools execute media transformations** (yt-dlp downloads videos, FFmpeg extracts 16kHz audio, crops 9:16 vertical frames, applies punch-in effects, and renders final MP4 shorts).
+- **Deterministic tools execute media transformations** (yt-dlp downloads videos, FFmpeg extracts 16kHz audio, crops 9:16 vertical frames, applies punch-in effects, generates ASS animated subtitles, and renders final MP4 shorts).
 
 ```
 Long-Form Video (YouTube URL or File Upload)
@@ -50,18 +50,22 @@ Long-Form Video (YouTube URL or File Upload)
                      │
                      ▼
        ┌───────────────────────────┐
-       │ Agent 4: Hook Generator   │ ──> 4 Hook Archetypes & FFmpeg Overlays
+       │ Agent 4: Hook Generator   │ ──> 4 Hook Archetypes & Visual Styles
        └───────────────────────────┘
                      │
                      ▼
        ┌───────────────────────────┐
-       │ Agent 5: Video Editing    │ ──> 9:16 Smart Crop, Punch-in Zoom, Render
+       │ Agent 5: Video Editing    │ ──> 9:16 Smart Crop, Punch-in Zoom, Audio Normalization
+       └───────────────────────────┘
+                     │
+                     ▼
+       ┌───────────────────────────┐
+       │ Agent 6: Caption Agent    │ ──> 5 Synchronized ASS Caption Styles & Burn
        └───────────────────────────┘
                      │
                      ▼
           [Upcoming Agent Pipeline]
        ┌───────────────────────────┐
-       │ Agent 6: Caption Subtitles│
        │ Agent 7: Quality Review   │
        └───────────────────────────┘
 ```
@@ -71,7 +75,7 @@ Long-Form Video (YouTube URL or File Upload)
 ## Active AI Agents and Capabilities
 
 ### 1. Ingestion and Media Tools (`app/services/media_tools.py`)
-- Downloads YouTube videos cleanly via `yt-dlp`.
+- Downloads YouTube videos cleanly via `yt-dlp` with built-in multi-client bot-detection bypass (`mweb`, `android`, `ios`) and browser cookie fallback.
 - Supports direct file uploads (MP4, MOV, MKV, WebM) with drag-and-drop.
 - Extracts comprehensive stream properties with `ffprobe` (dimensions, fps, duration, codecs).
 - Extracts clean 16kHz mono MP3 tracks with `ffmpeg` for optimal speech-to-text accuracy.
@@ -90,16 +94,18 @@ Long-Form Video (YouTube URL or File Upload)
 - Analyzes transcript cadence, emotional peaks, and viral triggers.
 - Identifies optimal self-contained segments between 15 and 60 seconds.
 - Computes dynamic Virality Index, Hook Score, and Retention Potential metrics.
-- Powered by Groq LLM (`openai/gpt-oss-120b`).
+- Crafts tailored, segment-specific headlines from spoken dialogue without repetitive cliches.
+- Powered by Groq LLM (`openai/gpt-oss-120b` and `qwen/qwen3.8-27b`).
 
 ### 5. Hook Generator Agent (`app/services/hook_generator_agent.py`)
 - Evaluates the opening 3-5 seconds of each candidate clip to maximize viewer retention.
-- Crafts 4 distinct viral hook variations per clip across proven copywriting archetypes:
-  - **Curiosity Gap**: Poses an irresistible mystery or cliffhanger.
-  - **Contrarian**: Challenges mainstream belief or conventional wisdom.
-  - **Problem-Agitation**: Pinpoints a frustrating mistake and promises immediate relief.
-  - **Direct Value**: Delivers an actionable secret, hack, or formula.
-- Automatically generates deterministic FFmpeg `drawtext` overlay parameters.
+- Crafts 4 distinct viral hook variations per clip across proven copywriting archetypes and visual presentations:
+  - **Curiosity Gap** with `top_neon_pill`: Poses an irresistible mystery or unspoken pattern.
+  - **Contrarian** with `center_punch_title`: Challenges mainstream belief right during the opening zoom punch-in.
+  - **Problem-Agitation** with `lower_third_bar`: Pinpoints a frustrating mistake and promises immediate relief.
+  - **Direct Value** with `floating_frosted_card`: Delivers an actionable secret, hack, or framework.
+- Generates dynamic, context-specific hook headlines tailored to the speaker's exact insight (eliminating repetitive cliches).
+- Automatically generates deterministic FFmpeg overlay parameters for on-screen titles.
 
 ### 6. Video Editing Agent (`app/services/video_editing_agent.py`)
 - Deterministically crops horizontal 16:9 video to vertical 9:16 format (1080x1920) optimized for TikTok, Instagram Reels, and YouTube Shorts.
@@ -107,6 +113,17 @@ Long-Form Video (YouTube URL or File Upload)
 - Burns high-contrast visual title cards and hook banners into the opening 3.5 seconds.
 - Applies mobile loudness normalization (`loudnorm=I=-16:TP=-1.5:LRA=11`) and smooth audio fade transitions to eliminate audio clicks on cut boundaries.
 - Renders standalone vertical MP4 files saved to `storage/processed/{clip_id}.mp4` accessible via streaming API.
+
+### 7. Caption Agent (`app/services/caption_agent.py`)
+- Generates frame-accurate Advanced SubStation Alpha (ASS v4.00+) subtitle documents mapped to Whisper word-level timestamps.
+- Burns animated subtitles directly into 9:16 vertical clips using FFmpeg's `libass` subtitle engine.
+- Supports 5 distinct creative caption styles tailored to diverse content formats:
+  - **Alex Hormozi Glow (`hormozi_glow`)**: High-contrast white typography where the spoken active word pops in electric neon lime (`#00FF66`). Fast 2-3 word cadence.
+  - **MrBeast Viral Yellow (`mrbeast_yellow`)**: Giant bold yellow impact text (`#FFE81F`) with thick 4.5px black outline and radiant white active flash.
+  - **Karaoke Wave Fill (`karaoke_fill`)**: Syllable-by-syllable smooth progressive color wipe from silver to vibrant coral amber (`#FF5511`).
+  - **TikTok Frosted Pill (`tiktok_badge`)**: Clean modern sans enclosed in a floating obsidian translucent badge with electric magenta highlights.
+  - **Minimalist Clean (`minimal_clean`)**: Elegant frosted lower-third subtitles with subtle dark backing, ideal for documentary and luxury podcast clips.
+- Provides interactive on-the-fly clip re-rendering (`POST /api/v1/clips/jobs/{job_id}/clips/{clip_id}/rerender`) to allow switching caption and hook styles with instant browser previews.
 
 ---
 
@@ -118,9 +135,9 @@ The user interface is built with React 19 and Vite, following a strict modular a
 frontend/src/
 ├── components/
 │   ├── Navbar.jsx            # Brand header, navigation links, and Admin Center trigger
-│   ├── VideoIngestion.jsx    # Dual-input card for YouTube URLs and file uploads
-│   ├── ExecutionMonitor.jsx  # Multi-stage pipeline progress stepper (Steps 1 to 6)
-│   ├── ViralClipsTab.jsx     # Detected clips, 4 hook options, video player, and MP4 downloads
+│   ├── VideoIngestion.jsx    # Dual-input card for YouTube URLs and file uploads with caption selector
+│   ├── ExecutionMonitor.jsx  # Multi-stage pipeline progress stepper (Steps 1 to 7)
+│   ├── ViralClipsTab.jsx     # Detected clips, 5 caption styles, 4 hook options, video player, and re-rendering
 │   ├── UnderstandingTab.jsx  # Narrative arc, pacing, tone, and extracted topics
 │   ├── TranscriptTab.jsx     # Searchable dialogue stream with timestamps
 │   ├── MetadataTab.jsx       # FFprobe technical stream diagnostics
@@ -157,7 +174,7 @@ VentiCut includes an administrative telemetry console to monitor usage across fr
 ### 1. Prerequisites
 - Python 3.10+ (Tested on Python 3.14)
 - Node.js 18+ and npm (for frontend building)
-- FFmpeg installed and accessible in your system `PATH`
+- FFmpeg installed and accessible in your system `PATH` (must include `libass` support)
 
 ### 2. Clone and Setup Environment
 
@@ -199,9 +216,8 @@ ADMIN_PASSWORD=1234
 SECRET_KEY=venticut-jwt-secret-key-replace-in-production
 ```
 
-### 4. Build the Frontend (Optional for Python Devs)
+### 4. Build Frontend
 
-The compiled distribution is committed under `app/static/dist/`. To rebuild after making React component edits:
 ```bash
 cd frontend
 npm install
@@ -209,85 +225,73 @@ npm run build
 cd ..
 ```
 
-### 5. Launch the Application
+---
+
+## Running the Application
+
+Start the FastAPI application with Uvicorn:
 
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Once running:
-- **Web Interface**: http://127.0.0.1:8000
-- **Interactive API Docs (Swagger)**: http://127.0.0.1:8000/docs
-- **Health Check**: http://127.0.0.1:8000/api/v1/health
+- **Web Dashboard**: Open [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Interactive Swagger Docs**: Open [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **OpenAPI Schema**: [http://127.0.0.1:8000/api/v1/openapi.json](http://127.0.0.1:8000/api/v1/openapi.json)
 
 ---
 
-## How to Use VentiCut
+## API Usage Examples
 
-### 1. Repurpose a YouTube Video
-1. Open http://127.0.0.1:8000 in your browser.
-2. In the **Ingest Video** section, select **YouTube URL**.
-3. Paste a YouTube link (e.g. `https://www.youtube.com/watch?v=...` or `https://youtu.be/...`).
-4. (Optional) Provide a Webhook URL to receive automated JSON event dispatches.
-5. Click **Process Video**.
-
-### 2. Upload a Local Video File
-1. Click the **Upload Video File** tab.
-2. Drag and drop any raw MP4, MOV, MKV, or WebM video file (up to 500 MB).
-3. Click **Process Video**.
-
-### 3. Monitor Real-Time Multi-Agent Execution
-Observe the execution monitor as the pipeline progresses through:
-- **Step 1: Ingestion & Audio**: Downloads video and strips 16kHz audio.
-- **Step 2: Transcription Agent**: Generates word-level timestamps via Groq Whisper.
-- **Step 3: Understanding Agent**: Generates narrative arc and topic comprehension via Gemini.
-- **Step 4: Viral Clip Finder**: Identifies 15-60s candidate segments with virality scores via Groq.
-- **Step 5: Hook Generator Agent**: Crafts 4 viral hook variations and FFmpeg overlay filters.
-- **Step 6: Video Editing Agent**: Crops to 9:16 vertical, applies opening punch-in zoom, normalizes loudness, and renders output MP4.
-
-### 4. Inspect Results & Download Rendered Shorts
-- **Viral Clips Tab**: Browse detected highlights, inspect virality/retention scores, view 4 tailored hook options, play the rendered vertical 9:16 short directly in the browser video player, and click **Download MP4** to save the finished short.
-- **Understanding Tab**: Review the Gemini executive briefing, narrative tone, pacing, and extracted themes.
-- **Transcript Tab**: Search dialogues in real time with word timestamps.
-- **Metadata Tab**: Review technical video stream specs (bitrate, fps, codec, resolution).
-- **Logs Tab**: View raw execution events and terminal messages.
-
-### 5. Admin & Quota Management
-1. Click **Admin Panel** in the top navigation bar.
-2. Sign in with username `admin` and password `1234`.
-3. Review your remaining daily free-tier quotas for Groq tokens, Whisper minutes, and Gemini requests.
-
----
-
-## REST API Reference
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/` | Serves the modular React web application |
-| `GET` | `/api/v1/health` | System health and service availability check |
-| `POST` | `/api/v1/clips/jobs` | Submit a YouTube video URL for background processing |
-| `POST` | `/api/v1/clips/upload` | Upload a video file for background processing |
-| `GET` | `/api/v1/clips/jobs/{id}` | Poll execution status, progress, and generated clips |
-| `GET` | `/api/v1/clips/downloads/{clip_id}` | Stream or download rendered vertical 9:16 video short |
-| `POST` | `/api/v1/admin/login` | Authenticate administrator and receive JWT token |
-| `GET` | `/api/v1/admin/stats` | Retrieve live token usage and storage telemetry |
-
----
-
-## Testing & Quality Assurance
-
-VentiCut enforces strict code formatting and testing standards.
+### 1. Submit a YouTube Video for Repurposing with Selected Caption Style
 
 ```bash
-# Run Ruff lint check
+curl -X POST "http://127.0.0.1:8000/api/v1/clips/jobs" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "target_aspect_ratio": "9:16",
+    "caption_style": "hormozi_glow",
+    "webhook_url": "https://your-domain.com/webhook"
+  }'
+```
+
+### 2. List Available Caption Styles
+
+```bash
+curl -X GET "http://127.0.0.1:8000/api/v1/clips/caption-styles"
+```
+
+### 3. Re-render an Existing Clip with a Different Caption Style or Hook
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/v1/clips/jobs/{job_id}/clips/{clip_id}/rerender" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "caption_style": "mrbeast_yellow",
+    "hook_style": "center_punch_title"
+  }'
+```
+
+### 4. Stream or Download Rendered Clip MP4
+
+```bash
+curl -O -J "http://127.0.0.1:8000/api/v1/clips/downloads/{clip_id}"
+```
+
+---
+
+## Running Tests
+
+Execute the full automated test suite:
+
+```bash
+pytest -v
+```
+
+Run code formatting and linting:
+
+```bash
 ruff check .
-
-# Run Ruff formatting check
 ruff format --check .
-
-# Auto-format all Python files
-ruff format .
-
-# Run Pytest suite
-pytest
 ```

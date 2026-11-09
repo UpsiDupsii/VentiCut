@@ -5,6 +5,7 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.models.clip import ClipJobResponse, JobStatus
+from app.services.caption_agent import CaptionAgent
 from app.services.clip_finder_agent import ViralClipFinderAgent
 from app.services.hook_generator_agent import HookGeneratorAgent
 from app.services.media_tools import download_youtube_video, extract_audio, extract_video_metadata
@@ -54,8 +55,9 @@ async def run_pipeline_for_job(
     youtube_url: str | None = None,
     min_duration: int = 15,
     max_duration: int = 60,
+    caption_style: str = "hormozi_glow",
 ):
-    """Executes the full pipeline through ingestion, transcription, understanding, viral clip detection, hook generation, and video editing."""
+    """Executes the full pipeline through ingestion, transcription, understanding, viral clip detection, hook generation, video editing, and synchronized captioning."""
     job = ACTIVE_JOBS.get(job_id)
     if not job:
         return
@@ -93,7 +95,7 @@ async def run_pipeline_for_job(
             await update_job(
                 JobStatus.DOWNLOADING,
                 "Downloading YouTube video using yt-dlp...",
-                15,
+                12,
                 f"Fetching YouTube video from {youtube_url}",
                 event_name="ingestion_started",
             )
@@ -109,7 +111,7 @@ async def run_pipeline_for_job(
             await update_job(
                 JobStatus.PENDING,
                 "Extracting video metadata with ffprobe...",
-                20,
+                15,
                 f"Analyzing uploaded video file: {video_path.name}",
                 event_name="ingestion_started",
             )
@@ -123,7 +125,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.EXTRACTING_AUDIO,
             "Extracting high-clarity 16kHz mono audio via FFmpeg...",
-            30,
+            25,
             "FFmpeg extracting audio track for Whisper transcription...",
             event_name="audio_extraction_started",
         )
@@ -135,7 +137,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.TRANSCRIBING,
             "Transcription Agent: Generating timestamps and speech transcript via Groq Whisper...",
-            50,
+            42,
             "Calling Groq Whisper API for word-level timestamps...",
             event_name="transcription_started",
         )
@@ -150,7 +152,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.UNDERSTANDING,
             "Video Understanding Agent: Analyzing content, tone, pacing, and hooks...",
-            65,
+            56,
             "Calling Video Understanding Agent to analyze context and narrative arc...",
             event_name="understanding_started",
         )
@@ -165,7 +167,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.DETECTING_HIGHLIGHTS,
             "Viral Clip Finder Agent: Identifying optimal 15-60s candidate segments...",
-            80,
+            70,
             "Running Viral Clip Finder Agent to score retention and viral moments...",
             event_name="clip_detection_started",
         )
@@ -185,7 +187,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.GENERATING_HOOKS,
             "Hook Generator Agent: Creating viral opening title cards and teaser overlays...",
-            90,
+            80,
             "Hook Generator Agent crafting multi-archetype visual hooks and FFmpeg overlays...",
             event_name="hook_generation_started",
         )
@@ -205,7 +207,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.RENDERING,
             "Video Editing Agent: Rendering 9:16 vertical video with punch-in hooks and audio normalization...",
-            96,
+            88,
             "FFmpeg executing smart 9:16 vertical crop, opening punch-in zoom, and title banner...",
             event_name="rendering_started",
         )
@@ -220,17 +222,39 @@ async def run_pipeline_for_job(
         output_files = [c.rendered_video_path for c in rendered_clips if c.rendered_video_path]
         job.output_files = output_files
         job.logs.append(
-            f"Video Editing complete: Rendered {len(output_files)} polished vertical 9:16 shorts."
+            f"Video Editing complete: Rendered {len(output_files)} polished vertical 9:16 cuts."
         )
 
-        # Step 8: Mark pipeline stage as completed
+        # Step 8: Caption Agent
+        await update_job(
+            JobStatus.CAPTIONING,
+            f"Caption Agent: Generating synchronized animated captions ({caption_style})...",
+            95,
+            f"Caption Agent generating frame-accurate ASS subtitles ({caption_style}) and burning onto clips...",
+            event_name="captioning_started",
+        )
+        caption_agent = CaptionAgent()
+        captioned_clips = await asyncio.to_thread(
+            caption_agent.caption_clips,
+            clips=rendered_clips,
+            transcription=job.transcription,
+            default_style=caption_style,
+        )
+        job.highlights = captioned_clips
+        final_files = [c.rendered_video_path for c in captioned_clips if c.rendered_video_path]
+        job.output_files = final_files
+        job.logs.append(
+            f"Caption Agent complete: Burned animated subtitles across {len(final_files)} clips using '{caption_style}' preset."
+        )
+
+        # Step 9: Mark pipeline stage as completed
         await update_job(
             JobStatus.COMPLETED,
-            f"Pipeline complete! {len(output_files)} viral vertical shorts rendered with visual hooks.",
+            f"Pipeline complete! {len(final_files)} viral vertical shorts rendered with visual hooks and animated captions.",
             100,
             "Pipeline processing finished successfully.",
             event_name="job_completed",
-            payload={"clip_count": len(rendered_clips), "rendered_count": len(output_files)},
+            payload={"clip_count": len(captioned_clips), "rendered_count": len(final_files)},
         )
 
     except Exception as e:

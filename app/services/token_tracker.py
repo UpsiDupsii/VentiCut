@@ -66,6 +66,11 @@ class TokenTracker:
         self.groq_llm_prompt_tokens += prompt_tokens
         self.groq_llm_completion_tokens += completion_tokens
 
+    def record_groq_tokens(self, total_tokens: int = 0):
+        self._check_daily_reset()
+        self.groq_llm_calls += 1
+        self.groq_llm_prompt_tokens += total_tokens
+
     def record_gemini_call(self, estimated_tokens: int = 0):
         self._check_daily_reset()
         self.gemini_calls += 1
@@ -101,45 +106,52 @@ class TokenTracker:
 
         return {
             "date": self.last_reset_date,
-            "keys_configured": {
-                "groq": bool(settings.GROQ_API_KEY),
-                "gemini": bool(settings.GEMINI_API_KEY),
-            },
             "groq": {
                 "whisper_calls": self.groq_whisper_calls,
-                "audio_minutes_processed": round(self.groq_whisper_audio_minutes, 2),
+                "whisper_audio_minutes": self.groq_whisper_audio_minutes,
+                "audio_minutes_processed": self.groq_whisper_audio_minutes,
                 "llm_calls": self.groq_llm_calls,
-                "prompt_tokens": self.groq_llm_prompt_tokens,
-                "completion_tokens": self.groq_llm_completion_tokens,
+                "llm_prompt_tokens": self.groq_llm_prompt_tokens,
+                "llm_completion_tokens": self.groq_llm_completion_tokens,
                 "total_tokens_used": groq_total_tokens,
                 "daily_token_limit": self.groq_daily_token_limit,
                 "tokens_remaining": groq_tokens_remaining,
+                "token_usage_percentage": round(
+                    (groq_total_tokens / self.groq_daily_token_limit) * 100, 2
+                ),
                 "tokens_pct_used": round(
                     (groq_total_tokens / self.groq_daily_token_limit) * 100, 2
                 ),
                 "total_requests": groq_total_requests,
-                "requests_limit": self.groq_daily_request_limit,
+                "daily_request_limit": self.groq_daily_request_limit,
                 "requests_remaining": groq_requests_remaining,
-                "rpm_limit": self.groq_rpm_limit,
             },
             "gemini": {
                 "requests_used": self.gemini_calls,
+                "daily_request_limit": self.gemini_daily_request_limit,
                 "requests_limit": self.gemini_daily_request_limit,
                 "requests_remaining": gemini_requests_remaining,
+                "request_usage_percentage": round(
+                    (self.gemini_calls / self.gemini_daily_request_limit) * 100, 2
+                ),
                 "requests_pct_used": round(
                     (self.gemini_calls / self.gemini_daily_request_limit) * 100, 2
                 ),
-                "estimated_tokens_used": self.gemini_estimated_tokens,
-                "rpm_limit": self.gemini_rpm_limit,
+                "estimated_tokens": self.gemini_estimated_tokens,
             },
             "webhooks": {
                 "total_dispatched": self.webhooks_dispatched,
                 "successful": self.webhooks_successful,
-                "success_rate_pct": (
-                    round((self.webhooks_successful / self.webhooks_dispatched) * 100, 1)
-                    if self.webhooks_dispatched > 0
-                    else 100.0
+                "failed": self.webhooks_dispatched - self.webhooks_successful,
+                "success_rate_percentage": round(
+                    (self.webhooks_successful / max(1, self.webhooks_dispatched)) * 100, 1
                 ),
+            },
+            "storage": {
+                "uploads_mb": uploads_mb,
+                "temp_mb": temp_mb,
+                "processed_mb": processed_mb,
+                "total_mb": round(uploads_mb + temp_mb + processed_mb, 2),
             },
             "storage_mb": {
                 "uploads": uploads_mb,

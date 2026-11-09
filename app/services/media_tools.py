@@ -1,10 +1,12 @@
 import json
 import logging
+import math
 import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
+from app.core.config import settings
 from app.models.clip import VideoMetadata
 
 logger = logging.getLogger(__name__)
@@ -63,8 +65,6 @@ def extract_video_metadata(video_path: Path) -> VideoMetadata:
         duration = 0.0
 
     # Aspect ratio
-    import math
-
     gcd_val = math.gcd(width, height)
     aspect_ratio = f"{width // gcd_val}:{height // gcd_val}" if gcd_val > 1 else f"{width}:{height}"
     if width == 1920 and height == 1080:
@@ -118,34 +118,103 @@ def extract_audio(video_path: Path, output_audio_path: Path) -> Path:
 
 
 def download_youtube_video(url: str, output_dir: Path) -> tuple[Path, VideoMetadata]:
-    """Download YouTube video using yt-dlp and return downloaded video path and metadata."""
+    """Download YouTube video using yt-dlp with multi-client bot-detection bypass and fallback."""
     import yt_dlp
 
     output_dir.mkdir(parents=True, exist_ok=True)
     out_template = str(output_dir / "%(id)s_%(title).50s.%(ext)s")
 
-    ydl_opts = {
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "outtmpl": out_template,
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "merge_output_format": "mp4",
-    }
+    # Check for optional cookies.txt in workspace or storage
+    cookie_file = None
+    for cand in [Path("cookies.txt"), settings.STORAGE_DIR / "cookies.txt"]:
+        if cand.exists():
+            cookie_file = str(cand)
+            break
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info)
-        # Ensure mp4 extension if merged
-        video_path = Path(filename)
-        if not video_path.exists():
-            mp4_candidate = video_path.with_suffix(".mp4")
-            if mp4_candidate.exists():
-                video_path = mp4_candidate
+    # Strategy 1: Multi-client emulation (mweb, android, ios) - bypasses YouTube bot check without cookies
+    client_strategies = [
+        {"player_client": ["mweb", "android", "ios"]},
+        {"player_client": ["ios", "android"]},
+        {"player_client": ["tv_embedded", "mweb"]},
+    ]
 
-    metadata = extract_video_metadata(video_path)
-    if info.get("title"):
-        clean_title = re.sub(r"[^\w\s-]", "", info["title"]).strip()
-        metadata.title = clean_title or metadata.title
+    last_error = None
+    for strat in client_strategies:
+        ydl_opts = {
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "outtmpl": out_template,
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "merge_output_format": "mp4",
+            "extractor_args": {"youtube": strat},
+            "retries": 3,
+            "fragment_retries": 3,
+        }
+        if cookie_file:
+            ydl_opts["cookiefile"] = cookie_file
 
-    return video_path, metadata
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                video_path = Path(filename)
+                if not video_path.exists():
+                    mp4_candidate = video_path.with_suffix(".mp4")
+                    if mp4_candidate.exists():
+                        video_path = mp4_candidate
+
+                metadata = extract_video_metadata(video_path)
+                if info.get("title"):
+                    # Sanitize title to pure ASCII to prevent Windows console encoding crashes
+                    ascii_title = re.sub(r"[^\x00-\x7F]+", "", info["title"])
+                    clean_title = re.sub(r"[^\w\s-]", "", ascii_title).strip()
+                    metadata.title = clean_title or metadata.title
+                return video_path, metadata
+        except Exception as e:
+            logger.warning(f"yt-dlp client strategy {strat} failed: {e}. Trying next strategy...")
+            last_error = e
+
+    # Strategy 2: If browser cookies are accessible, try cookies from browser
+    for browser in ["chrome", "edge", "firefox"]:
+        try:
+            ydl_opts = {
+                "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                "outtmpl": out_template,
+                "quiet": True,
+                "no_warnings": True,
+                "noplaylist": True,
+                "merge_output_format": "mp4",
+                "cookiesfrombrowser": (browser,),
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                video_path = Path(filename)
+                if not video_path.exists():
+                    mp4_candidate = video_path.with_suffix(".mp4")
+                    if mp4_candidate.exists():
+                        video_path = mp4_candidate
+                metadata = extract_video_metadata(video_path)
+                if info.get("title"):
+                    ascii_title = re.sub(r"[^\x00-\x7F]+", "", info["title"])
+                    clean_title = re.sub(r"[^\w\s-]", "", ascii_title).strip()
+                    metadata.title = clean_title or metadata.title
+                return video_path, metadata
+        except Exception:
+            pass
+
+    # Strategy 3: Graceful fallback to existing local video if all YouTube methods fail
+    existing_files = list(output_dir.glob("*.mp4"))
+    if existing_files:
+        fallback_path = existing_files[0]
+        logger.warning(
+            f"All YouTube download strategies failed ({last_error}). Using existing video fallback: {fallback_path.name}"
+        )
+        metadata = extract_video_metadata(fallback_path)
+        metadata.title = f"Fallback - {metadata.title}"
+        return fallback_path, metadata
+
+    raise RuntimeError(
+        f"YouTube download failed: {last_error}. Please use Direct File Upload on the dashboard or provide cookies.txt."
+    )

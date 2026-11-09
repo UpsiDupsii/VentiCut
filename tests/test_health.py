@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,8 +12,11 @@ from app.models.clip import (
     TranscriptionResult,
     TranscriptionSegment,
     VideoMetadata,
+    WordTimestamp,
 )
+from app.services.caption_agent import CaptionAgent
 from app.services.clip_finder_agent import ViralClipFinderAgent
+from app.services.coordinator import ACTIVE_JOBS, create_new_job
 from app.services.hook_generator_agent import HookGeneratorAgent
 from app.services.token_tracker import token_tracker
 from app.services.transcription_agent import TranscriptionAgent
@@ -47,49 +50,60 @@ def test_health_endpoint():
 
 
 def test_create_and_get_job():
-    with patch("app.api.v1.endpoints.clips.run_pipeline_for_job"):
-        create_resp = client.post(
-            "/api/v1/clips/jobs",
-            json={
-                "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                "webhook_url": "https://example.com/webhook",
-            },
-        )
+    with patch("app.api.v1.endpoints.clips.run_pipeline_for_job", new_callable=AsyncMock):
+        request_payload = {
+            "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "target_aspect_ratio": "9:16",
+            "max_duration_seconds": 60,
+            "min_duration_seconds": 15,
+            "caption_style": "hormozi_glow",
+        }
+        create_resp = client.post("/api/v1/clips/jobs", json=request_payload)
         assert create_resp.status_code == 202
-        job = create_resp.json()
-        job_id = job["job_id"]
-        assert job["status"] in ["pending", "downloading"]
-        assert job["webhook_url"] == "https://example.com/webhook"
+        data = create_resp.json()
+        assert "job_id" in data
+        assert data["status"] == "pending"
+        assert data["video_url"] == request_payload["video_url"]
 
+        job_id = data["job_id"]
         get_resp = client.get(f"/api/v1/clips/jobs/{job_id}")
         assert get_resp.status_code == 200
-        assert get_resp.json()["job_id"] == job_id
+        get_data = get_resp.json()
+        assert get_data["job_id"] == job_id
+        assert get_data["status"] == "pending"
 
 
-def test_upload_job():
-    with patch("app.api.v1.endpoints.clips.run_pipeline_for_job"):
-        file_content = b"fake video bytes for testing"
-        files = {"file": ("test_sample.mp4", file_content, "video/mp4")}
-        resp = client.post(
-            "/api/v1/clips/upload",
-            files=files,
-            data={"webhook_url": "https://example.com/webhook"},
-        )
-        assert resp.status_code == 202
-        data = resp.json()
+def test_upload_job(tmp_path: Path):
+    with patch("app.api.v1.endpoints.clips.run_pipeline_for_job", new_callable=AsyncMock):
+        test_video = tmp_path / "test_sample.mp4"
+        test_video.write_bytes(b"dummy video content for unit testing")
+
+        with test_video.open("rb") as f:
+            upload_resp = client.post(
+                "/api/v1/clips/upload",
+                files={"file": ("test_sample.mp4", f, "video/mp4")},
+                data={
+                    "target_aspect_ratio": "9:16",
+                    "min_duration_seconds": 15,
+                    "max_duration_seconds": 60,
+                    "caption_style": "mrbeast_yellow",
+                },
+            )
+        assert upload_resp.status_code == 202
+        data = upload_resp.json()
+        assert "job_id" in data
         assert data["video_filename"] == "test_sample.mp4"
-        assert data["webhook_url"] == "https://example.com/webhook"
 
 
 def test_transcription_agent_fallback(tmp_path: Path):
-    dummy_audio = tmp_path / "dummy.mp3"
-    dummy_audio.write_bytes(b"dummy audio content")
-
     agent = TranscriptionAgent(api_key=None)
-    result = agent.transcribe(dummy_audio)
-    assert isinstance(result, TranscriptionResult)
-    assert len(result.segments) > 0
+    fake_audio = tmp_path / "fake_audio.mp3"
+    fake_audio.write_bytes(b"dummy audio content")
+
+    result = agent.transcribe(fake_audio)
     assert result.duration > 0
+    assert result.full_text != ""
+    assert len(result.segments) > 0
 
 
 def test_video_understanding_agent_fallback():
@@ -186,14 +200,28 @@ def test_hook_generator_agent_fallback():
 
 def test_hook_generator_drawtext_formatting():
     agent = HookGeneratorAgent(api_key=None)
-    filter_banner = agent._build_ffmpeg_drawtext("STOP DOING THIS", "top_banner_yellow")
-    assert "drawtext=text='STOP DOING THIS'" in filter_banner
-    assert "fontsize=" in filter_banner
-    assert "enable='between(t,0,3.5)'" in filter_banner
 
-    filter_center = agent._build_ffmpeg_drawtext("SECRET FORMULA", "center_glow_white")
-    assert "drawtext=text='SECRET FORMULA'" in filter_center
-    assert "boxcolor=black@0.85" in filter_center
+    # Test top neon pill
+    filter_pill = agent._build_ffmpeg_drawtext("WHY NOBODY TALKS", "top_neon_pill")
+    assert "drawtext=text='WHY NOBODY TALKS'" in filter_pill
+    assert "fontsize=48" in filter_pill
+    assert "enable='between(t,0,3.5)'" in filter_pill
+
+    # Test center punch title
+    filter_center = agent._build_ffmpeg_drawtext("STOP DOING THIS", "center_punch_title")
+    assert "drawtext=text='STOP DOING THIS'" in filter_center
+    assert "fontsize=54" in filter_center
+    assert "enable='between(t,0,2.5)'" in filter_center
+
+    # Test lower third bar
+    filter_bar = agent._build_ffmpeg_drawtext("BIGGEST MISTAKE", "lower_third_bar")
+    assert "drawtext=text='BIGGEST MISTAKE'" in filter_bar
+    assert "y=h-380" in filter_bar
+
+    # Test floating frosted card
+    filter_card = agent._build_ffmpeg_drawtext("SECRET FORMULA", "floating_frosted_card")
+    assert "drawtext=text='SECRET FORMULA'" in filter_card
+    assert "boxcolor=0x0b1120@0.85" in filter_card
 
 
 def test_video_editing_agent_filters():
@@ -204,7 +232,8 @@ def test_video_editing_agent_filters():
         spoken_hook="Stop wasting time on low retention edits",
         hook_type="Contrarian",
         hook_score=94.0,
-        visual_style="top_banner_yellow",
+        visual_style="center_punch_title",
+        ffmpeg_drawtext="drawtext=text='STOP WASTING TIME':fontsize=54",
     )
     clip = ClipHighlight(
         id="clip_test_render",
@@ -236,12 +265,10 @@ def test_download_clip_endpoint(tmp_path: Path):
     test_file.write_bytes(b"fake mp4 video bytes for testing")
 
     try:
-        # Success response
         resp = client.get(f"/api/v1/clips/downloads/{test_clip_id}")
         assert resp.status_code == 200
         assert "video/mp4" in resp.headers.get("content-type", "")
 
-        # 404 response for nonexistent file
         missing_resp = client.get("/api/v1/clips/downloads/non_existent_clip_xyz")
         assert missing_resp.status_code == 404
     finally:
@@ -249,13 +276,155 @@ def test_download_clip_endpoint(tmp_path: Path):
             test_file.unlink()
 
 
+def test_caption_agent_list_styles():
+    styles = CaptionAgent.list_styles()
+    assert len(styles) == 5
+    style_ids = {s.id for s in styles}
+    assert "hormozi_glow" in style_ids
+    assert "mrbeast_yellow" in style_ids
+    assert "karaoke_fill" in style_ids
+    assert "tiktok_badge" in style_ids
+    assert "minimal_clean" in style_ids
+
+
+def test_caption_agent_ass_generation_all_styles(tmp_path: Path):
+    agent = CaptionAgent(output_dir=tmp_path)
+    words = [
+        WordTimestamp(word="THIS", start=10.0, end=10.5),
+        WordTimestamp(word="IS", start=10.5, end=11.0),
+        WordTimestamp(word="AN", start=11.0, end=11.4),
+        WordTimestamp(word="INSANE", start=11.4, end=12.0),
+        WordTimestamp(word="VIRAL", start=12.0, end=12.6),
+        WordTimestamp(word="SHORT", start=12.6, end=13.2),
+    ]
+    segment = TranscriptionSegment(
+        id=1,
+        start=10.0,
+        end=13.5,
+        text="This is an insane viral short",
+        words=words,
+    )
+    transcript = TranscriptionResult(
+        language="en",
+        duration=30.0,
+        full_text="This is an insane viral short",
+        segments=[segment],
+    )
+    clip = ClipHighlight(
+        id="clip_ass_test",
+        start_time=10.0,
+        end_time=14.0,
+        duration=4.0,
+        headline="INSANE VIRAL SHORT",
+        virality_score=95.0,
+    )
+
+    all_styles = ["hormozi_glow", "mrbeast_yellow", "karaoke_fill", "tiktok_badge", "minimal_clean"]
+    for s in all_styles:
+        ass_path, count = agent.generate_ass_file(clip, transcript, style_id=s)
+        assert ass_path.exists()
+        assert count == 6
+        content = ass_path.read_text(encoding="utf-8")
+        assert "[Script Info]" in content
+        assert "PlayResX: 1080" in content
+        assert "PlayResY: 1920" in content
+        assert "[V4+ Styles]" in content
+        assert "[Events]" in content
+        assert "Dialogue:" in content
+        if s == "karaoke_fill":
+            assert r"{\k" in content
+
+
+def test_caption_agent_burn_mock(tmp_path: Path):
+    agent = CaptionAgent(output_dir=tmp_path)
+    fake_video = tmp_path / "fake_input.mp4"
+    fake_video.write_bytes(b"dummy mp4")
+    fake_ass = tmp_path / "fake.ass"
+    fake_ass.write_text("[Script Info]\n", encoding="utf-8")
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        # Create the temp output file that FFmpeg would create
+        temp_out = tmp_path / "clip1_captioned_temp.mp4"
+        temp_out.write_bytes(b"dummy captioned mp4")
+
+        res_path = agent.burn_captions_into_video(fake_video, fake_ass, "clip1")
+        assert res_path.name == "clip1.mp4"
+        assert res_path.exists()
+
+
+def test_caption_styles_api_endpoint():
+    resp = client.get("/api/v1/clips/caption-styles")
+    assert resp.status_code == 200
+    styles = resp.json()
+    assert len(styles) == 5
+    ids = [s["id"] for s in styles]
+    assert "hormozi_glow" in ids
+    assert "mrbeast_yellow" in ids
+
+
+def test_rerender_clip_api_endpoint(tmp_path: Path):
+    # Setup test job and clip
+    test_video = settings.UPLOAD_DIR / "rerender_test_source.mp4"
+    test_video.write_bytes(b"dummy source video content")
+
+    hook = HookVariant(
+        id="h_variant_1",
+        headline="HOOK VARIANT 1",
+        spoken_hook="Spoken teaser one",
+        hook_type="Curiosity Gap",
+        hook_score=95.0,
+        visual_style="top_neon_pill",
+    )
+    clip = ClipHighlight(
+        id="clip_rerender_1",
+        start_time=0.0,
+        end_time=5.0,
+        duration=5.0,
+        headline="INITIAL HEADLINE",
+        virality_score=90.0,
+        hooks=[hook],
+        selected_hook=hook,
+        caption_style="hormozi_glow",
+    )
+    job = create_new_job("rerender_test_source.mp4", video_filename="rerender_test_source.mp4")
+    job.highlights = [clip]
+    ACTIVE_JOBS[job.job_id] = job
+
+    # Mock video editing and caption burning
+    with (
+        patch.object(VideoEditingAgent, "render_single_clip") as mock_edit,
+        patch.object(CaptionAgent, "burn_captions_into_video") as mock_burn,
+    ):
+        rendered_cut = tmp_path / "clip_rerender_1.mp4"
+        rendered_cut.write_bytes(b"base cut")
+        mock_edit.return_value = rendered_cut
+        mock_burn.return_value = rendered_cut
+
+        rerender_payload = {
+            "caption_style": "mrbeast_yellow",
+            "hook_variant_id": "h_variant_1",
+            "hook_style": "center_punch_title",
+        }
+        resp = client.post(
+            f"/api/v1/clips/jobs/{job.job_id}/clips/{clip.id}/rerender",
+            json=rerender_payload,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["caption_style"] == "mrbeast_yellow"
+        assert data["selected_hook"]["visual_style"] == "center_punch_title"
+        assert "/api/v1/clips/downloads/clip_rerender_1" in data["rendered_url"]
+
+    if test_video.exists():
+        test_video.unlink()
+
+
 @pytest.mark.anyio
 async def test_webhook_dispatcher():
-    # Without URL, returns False safely
     res_none = await dispatch_webhook(None, "test_event", "job1", "pending", 10, "msg")
     assert res_none is False
 
-    # Mocked client delivering webhook
     with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value.status_code = 200
         delivered = await dispatch_webhook(
@@ -271,7 +440,6 @@ async def test_webhook_dispatcher():
 
 
 def test_admin_auth_success():
-    # Test with email
     resp_email = client.post(
         "/api/v1/admin/login",
         json={"username_or_email": "admin@email.com", "password": "1234"},
@@ -281,14 +449,12 @@ def test_admin_auth_success():
     assert "access_token" in data_email
     token = data_email["access_token"]
 
-    # Test with username
     resp_user = client.post(
         "/api/v1/admin/login",
         json={"username_or_email": "admin", "password": "1234"},
     )
     assert resp_user.status_code == 200
 
-    # Test authenticated endpoint
     stats_resp = client.get(
         "/api/v1/admin/stats",
         headers={"Authorization": f"Bearer {token}"},
@@ -301,14 +467,12 @@ def test_admin_auth_success():
 
 
 def test_admin_auth_invalid():
-    # Wrong password
     resp = client.post(
         "/api/v1/admin/login",
         json={"username_or_email": "admin@email.com", "password": "wrongpassword"},
     )
     assert resp.status_code == 401
 
-    # Unauthorized access to stats
     unauth_resp = client.get("/api/v1/admin/stats")
     assert unauth_resp.status_code == 401
 

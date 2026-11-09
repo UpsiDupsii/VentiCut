@@ -7,28 +7,32 @@ export default function ExecutionMonitor({ job }) {
 
   const getStepClass = (stepNum) => {
     if (stepNum === 1) {
-      if (pct >= 30) return "completed";
+      if (pct >= 25) return "completed";
       if (pct > 0) return "active";
     }
     if (stepNum === 2) {
-      if (pct >= 50) return "completed";
-      if (pct >= 30) return "active";
+      if (pct >= 42) return "completed";
+      if (pct >= 25) return "active";
     }
     if (stepNum === 3) {
-      if (pct >= 65) return "completed";
-      if (pct >= 50) return "active";
+      if (pct >= 56) return "completed";
+      if (pct >= 42) return "active";
     }
     if (stepNum === 4) {
-      if (pct >= 80) return "completed";
-      if (pct >= 65) return "active";
+      if (pct >= 70) return "completed";
+      if (pct >= 56) return "active";
     }
     if (stepNum === 5) {
-      if (pct >= 95) return "completed";
-      if (pct >= 80) return "active";
+      if (pct >= 80) return "completed";
+      if (pct >= 70) return "active";
     }
     if (stepNum === 6) {
+      if (pct >= 90) return "completed";
+      if (pct >= 80) return "active";
+    }
+    if (stepNum === 7) {
       if (pct >= 100) return "completed";
-      if (pct >= 95) return "active";
+      if (pct >= 90) return "active";
     }
     return "";
   };
@@ -40,6 +44,7 @@ export default function ExecutionMonitor({ job }) {
     { num: 4, label: "Step 4", title: "Viral Clip Finder" },
     { num: 5, label: "Step 5", title: "Hook Generator" },
     { num: 6, label: "Step 6", title: "Video Editing Agent" },
+    { num: 7, label: "Step 7", title: "Caption Agent" },
   ];
 
   return (
@@ -77,10 +82,10 @@ export default function ExecutionMonitor({ job }) {
         </div>
       </div>
 
-      {/* Progress Track */}
+      {/* Progress Track Loading Bar */}
       <div style={{
         width: "100%",
-        height: "6px",
+        height: "8px",
         backgroundColor: "var(--bg-base)",
         borderRadius: "9999px",
         overflow: "hidden",
@@ -90,14 +95,15 @@ export default function ExecutionMonitor({ job }) {
           height: "100%",
           width: `${pct}%`,
           backgroundColor: "var(--accent-primary)",
-          transition: "width 0.3s ease",
+          borderRadius: "9999px",
+          transition: "width 0.4s ease",
         }} />
       </div>
 
       {/* Stepper Cards */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
         gap: "10px",
       }}>
         {steps.map((s) => {
@@ -127,7 +133,7 @@ export default function ExecutionMonitor({ job }) {
               <span style={{
                 fontSize: "10px",
                 fontWeight: 600,
-                color: isCompleted ? "var(--status-success)" : "var(--text-muted)",
+                color: isCompleted ? "var(--status-success)" : isActive ? "var(--accent-primary)" : "var(--text-muted)",
                 textTransform: "uppercase",
                 letterSpacing: "0.04em",
               }}>
