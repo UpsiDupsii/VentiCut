@@ -6,6 +6,7 @@ from pathlib import Path
 from app.core.config import settings
 from app.models.clip import ClipJobResponse, JobStatus
 from app.services.clip_finder_agent import ViralClipFinderAgent
+from app.services.hook_generator_agent import HookGeneratorAgent
 from app.services.media_tools import download_youtube_video, extract_audio, extract_video_metadata
 from app.services.transcription_agent import TranscriptionAgent
 from app.services.understanding_agent import VideoUnderstandingAgent
@@ -53,7 +54,7 @@ async def run_pipeline_for_job(
     min_duration: int = 15,
     max_duration: int = 60,
 ):
-    """Executes the full pipeline through ingestion, transcription, understanding, and viral clip detection."""
+    """Executes the full pipeline through ingestion, transcription, understanding, viral clip detection, and hook generation."""
     job = ACTIVE_JOBS.get(job_id)
     if not job:
         return
@@ -148,7 +149,7 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.UNDERSTANDING,
             "Video Understanding Agent: Analyzing content, tone, pacing, and hooks...",
-            75,
+            70,
             "Calling Video Understanding Agent to analyze context and narrative arc...",
             event_name="understanding_started",
         )
@@ -163,8 +164,8 @@ async def run_pipeline_for_job(
         await update_job(
             JobStatus.DETECTING_HIGHLIGHTS,
             "Viral Clip Finder Agent: Identifying optimal 15-60s candidate segments...",
-            90,
-            "Running Viral Clip Finder Agent to score retention and viral hooks...",
+            85,
+            "Running Viral Clip Finder Agent to score retention and viral moments...",
             event_name="clip_detection_started",
         )
         clip_finder = ViralClipFinderAgent()
@@ -179,14 +180,34 @@ async def run_pipeline_for_job(
         job.highlights = clips
         job.logs.append(f"Viral clip detection complete: Found {len(clips)} candidate clips.")
 
-        # Step 6: Mark pipeline stage as completed
+        # Step 6: Hook Generator Agent
+        await update_job(
+            JobStatus.GENERATING_HOOKS,
+            "Hook Generator Agent: Creating viral opening title cards and teaser overlays...",
+            95,
+            "Hook Generator Agent crafting multi-archetype visual hooks and FFmpeg overlays...",
+            event_name="hook_generation_started",
+        )
+        hook_generator = HookGeneratorAgent()
+        clips_with_hooks = await asyncio.to_thread(
+            hook_generator.generate_hooks_for_clips,
+            clips=clips,
+            understanding=understanding,
+        )
+        job.highlights = clips_with_hooks
+        total_hooks = sum(len(c.hooks) for c in clips_with_hooks)
+        job.logs.append(
+            f"Hook generation complete: Generated {total_hooks} hook variations across {len(clips_with_hooks)} clips."
+        )
+
+        # Step 7: Mark pipeline stage as completed
         await update_job(
             JobStatus.COMPLETED,
-            f"Analysis complete! {len(clips)} viral clip candidates identified.",
+            f"Analysis complete! {len(clips_with_hooks)} viral clips with opening visual hooks ready.",
             100,
             "Pipeline processing finished successfully.",
             event_name="job_completed",
-            payload={"clip_count": len(clips)},
+            payload={"clip_count": len(clips_with_hooks)},
         )
 
     except Exception as e:

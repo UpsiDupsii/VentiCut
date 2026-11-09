@@ -33,3 +33,7 @@
 ## 4. Change Tracking and Reporting
 - Step-by-Step Reporting: In every turn where code or project files are modified, clearly report the chronological steps taken and why.
 - Ordered File Manifest: Provide a sequential list of all files created, modified, or removed with clickable links and brief explanations of what was changed in each file to facilitate self-review and project comprehension.
+
+## 5. Documentation Maintenance (README.md)
+- Always update `README.md` as new features, agents, and capabilities are added.
+- Ensure `README.md` includes clear, step-by-step instructions on how to use every feature, configure environment variables, run the application, and test it.
