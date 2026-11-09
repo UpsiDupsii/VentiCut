@@ -225,8 +225,12 @@ Respond ONLY with valid JSON in this exact structure:
                 )
             )
 
-        if not variants:
-            raise ValueError("No valid hook variations parsed from LLM.")
+        if len(variants) < 4:
+            fb = self._generate_fallback(clip, understanding, clip_index)
+            for item in fb:
+                if len(variants) >= 4:
+                    break
+                variants.append(item)
 
         return variants
 

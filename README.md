@@ -59,15 +59,24 @@ Long-Form Video (YouTube URL or File Upload)
        └───────────────────────────┘
                      │
                      ▼
-       ┌───────────────────────────┐
-       │ Agent 6: Caption Agent    │ ──> 5 Synchronized ASS Caption Styles & Burn
-       └───────────────────────────┘
-                     │
-                     ▼
-          [Upcoming Agent Pipeline]
-       ┌───────────────────────────┐
-       │ Agent 7: Quality Review   │
-       └───────────────────────────┘
+        ┌───────────────────────────┐
+        │ Agent 6: Caption Agent    │ ──> 5 Synchronized ASS Caption Styles & Burn
+        └───────────────────────────┘
+                      │
+                      ▼
+        ┌───────────────────────────┐
+        │ Agent 7: Quality Review   │ ──> Audio, Pacing, Contrast & Brand Safety Audit
+        └───────────────────────────┘
+                      │
+                      ▼
+        ┌───────────────────────────┐
+        │ Agent 8: Social Metadata  │ ──> Multi-Platform SEO (Shorts, TikTok, Reels)
+        └───────────────────────────┘
+                      │
+                      ▼
+        ┌───────────────────────────┐
+        │ Agent 9: Thumbnail Agent  │ ──> 9:16 Vertical Cover Frames & Typography
+        └───────────────────────────┘
 ```
 
 ---
@@ -124,6 +133,26 @@ Long-Form Video (YouTube URL or File Upload)
   - **TikTok Frosted Pill (`tiktok_badge`)**: Clean modern sans enclosed in a floating obsidian translucent badge with electric magenta highlights.
   - **Minimalist Clean (`minimal_clean`)**: Elegant frosted lower-third subtitles with subtle dark backing, ideal for documentary and luxury podcast clips.
 - Provides interactive on-the-fly clip re-rendering (`POST /api/v1/clips/jobs/{job_id}/clips/{clip_id}/rerender`) to allow switching caption and hook styles with instant browser previews.
+
+### 8. Quality Review and Safety Agent (`app/services/quality_review_agent.py`)
+- Performs comprehensive automated quality assurance audits before clips are published:
+  - **Platform Duration Compliance**: Ensures clips fit optimal watch-time windows (15s to 60s).
+  - **Audio Loudness & Dynamics**: Verifies EBU R128 loudness normalization and crossfade integrity.
+  - **Subtitle Cadence & Speech Pacing**: Calculates words-per-second to ensure dialogue readability.
+  - **Brand Safety & Content Moderation**: Scans transcripts via Groq LLM for hate speech, harassment, or policy violations.
+- Computes an overall **Publish Readiness Score** (0-100) with pass/warning/fail status flags and actionable engagement recommendations.
+
+### 9. Social Metadata and SEO Agent (`app/services/social_metadata_agent.py`)
+- Crafts distribution packages optimized for algorithmic discovery across three platforms:
+  - **YouTube Shorts**: High-CTR titles (under 60 characters), search-optimized descriptions, and pinned discussion questions.
+  - **TikTok**: Conversational hook captions, trending hashtag sets (`#fyp`, `#foryou`, niche tags), and engagement-boosting pinned comments.
+  - **Instagram Reels**: Storytelling captions formatted with paragraph breaks, 10-12 categorized hashtags, and save-incentivizing CTAs.
+- Features one-click clipboard copying for post copy, hashtag sets, and pinned comments directly in the interface.
+
+### 10. Thumbnail and Cover Frame Selector Agent (`app/services/thumbnail_agent.py`)
+- Automatically selects the visual climax of the vertical video clip by sampling and scoring candidate frames for contrast, illumination, and sharpness.
+- Renders high-contrast 1080x1920 vertical cover thumbnail images with custom title pills and subtle top/bottom vignettes.
+- Saves cover frames to `storage/processed/{clip_id}_thumb.jpg` and exposes streaming download endpoints (`GET /api/v1/clips/downloads/{clip_id}/thumbnail`).
 
 ---
 
