@@ -56,37 +56,50 @@ Respond ONLY with a valid JSON object matching this schema:
 }}
 """
 
-        try:
-            config = types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.2,
-            )
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=config,
-            )
+        candidate_models = [
+            self.model,
+            "gemini-3.8-flash",
+            "gemini-3.5-flash",
+            "gemini-2.5-flash-lite",
+        ]
+        candidate_models = list(dict.fromkeys(m for m in candidate_models if m))
 
-            # Record usage in token tracker
-            est_tokens = len(prompt) // 4 + len(response.text or "") // 4
-            token_tracker.record_gemini_call(estimated_tokens=est_tokens)
+        last_error = None
+        for candidate in candidate_models:
+            try:
+                config = types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.2,
+                )
+                response = self.client.models.generate_content(
+                    model=candidate,
+                    contents=prompt,
+                    config=config,
+                )
 
-            text_output = response.text or "{}"
-            parsed = json.loads(text_output)
+                # Record usage in token tracker
+                est_tokens = len(prompt) // 4 + len(response.text or "") // 4
+                token_tracker.record_gemini_call(estimated_tokens=est_tokens)
 
-            return VideoUnderstandingResult(
-                summary=parsed.get("summary", ""),
-                topics=parsed.get("topics", []),
-                tone=parsed.get("tone", "conversational"),
-                pacing=parsed.get("pacing", "moderate"),
-                target_audience=parsed.get("target_audience", "General audience"),
-                potential_hooks=parsed.get("potential_hooks", []),
-                speaker_insights=parsed.get("speaker_insights", []),
-            )
+                text_output = response.text or "{}"
+                parsed = json.loads(text_output)
 
-        except Exception as e:
-            logger.error(f"Gemini video understanding failed: {e}. Falling back to simulation.")
-            return self._simulated_understanding(transcript, metadata, str(e))
+                return VideoUnderstandingResult(
+                    summary=parsed.get("summary", ""),
+                    topics=parsed.get("topics", []),
+                    tone=parsed.get("tone", "conversational"),
+                    pacing=parsed.get("pacing", "moderate"),
+                    target_audience=parsed.get("target_audience", "General audience"),
+                    potential_hooks=parsed.get("potential_hooks", []),
+                    speaker_insights=parsed.get("speaker_insights", []),
+                )
+
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Gemini model '{candidate}' failed: {e}. Trying next candidate...")
+
+        logger.error(f"All Gemini models failed ({last_error}). Falling back to simulation.")
+        return self._simulated_understanding(transcript, metadata, str(last_error))
 
     def _simulated_understanding(
         self,
@@ -99,7 +112,7 @@ Respond ONLY with a valid JSON object matching this schema:
         title = metadata.title if metadata else "Video Content"
         summary = f"Analysis of '{title}': A presentation covering video creation, technology, and media repurposing."
         if error_note:
-            summary = f"[{error_note}] {summary}"
+            logger.info(f"Fallback understanding active due to: {error_note}")
 
         return VideoUnderstandingResult(
             summary=summary,

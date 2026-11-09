@@ -111,6 +111,7 @@ def test_transcription_agent_fallback(tmp_path: Path):
 
 def test_video_understanding_agent_fallback():
     agent = VideoUnderstandingAgent(api_key=None)
+    agent.client = None
     transcript = TranscriptionResult(
         language="en",
         duration=30.0,

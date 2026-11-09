@@ -246,14 +246,25 @@ def list_jobs():
     "/downloads/{clip_id}",
     summary="Download or stream a rendered vertical 9:16 video clip",
 )
-def download_clip(clip_id: str):
+def download_clip(clip_id: str, download: bool = False):
     clip_path = settings.PROCESSED_DIR / f"{clip_id}.mp4"
     if not clip_path.exists():
         raise HTTPException(status_code=404, detail="Rendered clip not found")
+
+    # When streaming in HTML5 video players, serve inline with byte-range seeking
+    # When explicitly requested with ?download=true, send attachment header
+    if download:
+        return FileResponse(
+            path=clip_path,
+            media_type="video/mp4",
+            filename=f"venticut_short_{clip_id}.mp4",
+            content_disposition_type="attachment",
+        )
+
     return FileResponse(
         path=clip_path,
         media_type="video/mp4",
-        filename=f"venticut_short_{clip_id}.mp4",
+        content_disposition_type="inline",
     )
 
 

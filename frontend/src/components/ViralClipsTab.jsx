@@ -203,7 +203,7 @@ export default function ViralClipsTab({ highlights = [], jobId, onClipUpdated })
                     </span>
                     {clip.rendered_url && (
                       <a
-                        href={clip.rendered_url}
+                        href={`${clip.rendered_url}${clip.rendered_url.includes("?") ? "&" : "?"}download=true`}
                         download={`venticut_short_${clip.id}.mp4`}
                         className="btn-action"
                         style={{ textDecoration: "none", fontSize: "11px", padding: "4px 10px" }}
@@ -223,10 +223,13 @@ export default function ViralClipsTab({ highlights = [], jobId, onClipUpdated })
                       <video
                         key={clip.rendered_url}
                         controls
-                        preload="metadata"
-                        src={clip.rendered_url}
+                        playsInline
+                        preload="auto"
                         style={{ width: "100%", maxHeight: "420px", display: "block" }}
-                      />
+                      >
+                        <source src={clip.rendered_url} type="video/mp4" />
+                        Your browser does not support HTML5 video streaming.
+                      </video>
                     </div>
                   ) : (
                     <div style={{ padding: "40px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: "12px" }}>
