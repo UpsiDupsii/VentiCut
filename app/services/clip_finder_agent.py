@@ -42,7 +42,7 @@ class ViralClipFinderAgent:
 
     def __init__(self, api_key: str | None = None, model: str | None = None):
         self.api_key = api_key or settings.GROQ_API_KEY
-        self.model = model or "llama-3.3-70b-versatile"
+        self.model = model or settings.GROQ_LLM_MODEL
         self.client = Groq(api_key=self.api_key) if self.api_key else None
 
     def find_viral_clips(
