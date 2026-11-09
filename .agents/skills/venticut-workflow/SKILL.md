@@ -16,9 +16,20 @@ This skill guides the implementation of the VentiCut multi-agent AI video repurp
   - Keep changes on the local feature branch first, ensure local server is running, and give the user clear verification steps for local testing.
   - Ask the user for confirmation to review locally.
   - Only after the user confirms that local testing looks good, push the branch to GitHub and provide the ready-to-use PR title and description for merging into `staging`.
+  - Exception: If the user explicitly grants permission to push directly in a prompt, proceed with the push.
 - Explicit Branch Cleanup Reminder: Always explicitly remind the user to delete the feature branch on GitHub after merging the PR to keep the repository clean.
 - Mandatory Step-by-Step Reporting: In every turn where changes are introduced, provide a clear, chronological breakdown of actions taken and logic implemented.
 - Mandatory Ordered File Change Log: Provide an ordered list of all files created, modified, or deleted with clickable links (`file:///...`) and a brief explanation of changes in each file so the user can easily review and understand the workflow.
+
+## Frontend Architecture Standards
+- Modern, clean enterprise interface styled after Linear/Vercel using React.js.
+- Strict Component Separation: Every distinct UI section must be in its own standalone `.jsx` component file for maintainability and easy debugging:
+  - Navigation: `Navbar.jsx`
+  - Ingestion & Uploads: `VideoIngestion.jsx`
+  - Stepper & Progress Monitor: `ExecutionMonitor.jsx`
+  - Results Tab Panes: `ViralClipsTab.jsx`, `UnderstandingTab.jsx`, `TranscriptTab.jsx`, `MetadataTab.jsx`, `LogsTab.jsx`
+  - Admin & Telemetry: `AdminModal.jsx`
+  - Central State Container: `App.jsx`
 
 ## Response Structure Requirements
 When presenting work to the user, structure responses as follows:
@@ -26,7 +37,7 @@ When presenting work to the user, structure responses as follows:
 2. Step-by-Step Execution: Numbered list detailing the exact operational steps performed.
 3. Ordered File Manifest: Chronological table or list of modified/created files with paths and specific changes made.
 4. Review & Verification Guide: Commands to verify the changes locally (tests, linting, running server, and UI check steps).
-5. Confirmation Request / Next Steps: Ask the user to review locally and confirm before pushing to GitHub.
+5. Next Steps / Pull Request Details: Clear recommendations for the next action.
 
 ## Agent System Overview
 1. Ingestion / Downloader: Fetches video from YouTube (yt-dlp) or file upload.

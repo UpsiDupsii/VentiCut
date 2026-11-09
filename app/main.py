@@ -37,15 +37,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static asset directory for logo and styling
+# Mount static asset directory for logo and branding
 if Path("assets").exists():
     app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+
+# Mount React bundled distribution assets
+dist_assets = Path("app/static/dist/app-assets")
+dist_assets.mkdir(parents=True, exist_ok=True)
+app.mount("/app-assets", StaticFiles(directory=str(dist_assets)), name="app-assets")
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/", tags=["UI"])
 def serve_ui():
+    dist_index = Path("app/static/dist/index.html")
+    if dist_index.exists():
+        return FileResponse(dist_index)
     index_file = Path("app/static/index.html")
     if index_file.exists():
         return FileResponse(index_file)

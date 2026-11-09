@@ -26,7 +26,9 @@
   - Google Gemini API (Google AI Studio - free tier for multimodal reasoning and text).
   - Groq API (console.groq.com - free tier for fast Whisper transcription and Llama models).
   - Local tools: FFmpeg, yt-dlp, faster-whisper / whisper.
-- UI/UX Design: Clean, modern enterprise interface styled to complement the branding and color palette of `assets/logo.png`.
+- UI/UX Design & Frontend Architecture:
+  - Clean, modern enterprise interface styled to complement the branding and color palette of `assets/logo.png`.
+  - Built with React.js using modular, single-responsibility components in separate `.jsx` files (e.g. `Navbar.jsx`, `VideoIngestion.jsx`, `ExecutionMonitor.jsx`, individual tab components, `AdminModal.jsx`) for clean debugging and maintenance.
 
 ## 4. Change Tracking and Reporting
 - Step-by-Step Reporting: In every turn where code or project files are modified, clearly report the chronological steps taken and why.
