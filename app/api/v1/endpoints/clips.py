@@ -29,12 +29,15 @@ def create_job(request: CreateClipJobRequest, background_tasks: BackgroundTasks)
     job = create_new_job(
         video_source=request.video_url,
         video_url=request.video_url,
+        webhook_url=request.webhook_url,
     )
     background_tasks.add_task(
         run_pipeline_for_job,
         job.job_id,
         None,
         request.video_url,
+        request.min_duration_seconds,
+        request.max_duration_seconds,
     )
     return job
 
@@ -49,8 +52,10 @@ async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Video file (MP4, MKV, MOV, WebM)"),
     target_aspect_ratio: str = Form(default="9:16"),
+    min_duration_seconds: int = Form(default=15),
     max_duration_seconds: int = Form(default=60),
     generate_subtitles: bool = Form(default=True),
+    webhook_url: str | None = Form(default=None),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing file name")
@@ -65,6 +70,7 @@ async def upload_video(
     job = create_new_job(
         video_source=file.filename,
         video_filename=file.filename,
+        webhook_url=webhook_url,
     )
 
     background_tasks.add_task(
@@ -72,6 +78,8 @@ async def upload_video(
         job.job_id,
         destination_path,
         None,
+        min_duration_seconds,
+        max_duration_seconds,
     )
     return job
 

@@ -15,17 +15,19 @@
   - Run `ruff check .`, `ruff format --check .`, and `pytest`.
   - Commit cleanly and push the branch to GitHub.
   - Provide a clear, copy-pasteable Pull Request title and description targeting `staging`.
+  - Explicitly remind the user to delete the feature branch after merging the PR on GitHub to prevent branch clutter.
   - The user reviews, merges into `staging`, and deletes the feature branch.
 - After a cohesive set of features is ready on `staging`, a release PR is prepared for `staging -> main` with release notes.
 
 ## 3. Architecture Principles
 - Multi-Agent System: Each agent has a single, well-defined responsibility.
 - Separation of Concerns: LLMs make decisions; deterministic tools (FFmpeg, OpenCV, yt-dlp, Whisper) execute media processing.
+- Background Tasks & Asynchronous Execution: Return immediate responses to clients, process heavy media workflows in background workers, and dispatch status updates via Webhooks.
 - Prioritize Free APIs and Open Source tools:
   - Google Gemini API (Google AI Studio - free tier for multimodal reasoning and text).
   - Groq API (console.groq.com - free tier for fast Whisper transcription and Llama models).
   - Local tools: FFmpeg, yt-dlp, faster-whisper / whisper.
-- UI/UX Design: Clean, modern interface styled to complement the branding and color palette of `assets/logo.png`.
+- UI/UX Design: Clean, modern enterprise interface styled to complement the branding and color palette of `assets/logo.png`.
 
 ## 4. Change Tracking and Reporting
 - Step-by-Step Reporting: In every turn where code or project files are modified, clearly report the chronological steps taken and why.
